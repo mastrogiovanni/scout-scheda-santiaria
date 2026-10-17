@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="it"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#174c40"><title>Scheda sanitaria · Scout</title><link rel="stylesheet" href="/src/style.css"><script defer src="/public/vendor/pdf-lib.min.js"></script><script defer src="/public/vendor/jszip.min.js"></script><script defer src="/public/vendor/fontkit.umd.min.js"></script><script type="module" src="/src/app.js"></script></head>
+<body>
+  <header class="topbar"><a href="/" class="brand"><span class="brand-mark">✳</span> Scout <span class="brand-sub">/ scheda sanitaria</span></a><span class="local-badge"><i></i> Solo sul tuo dispositivo</span></header>
+  <main>
+    <section class="hero"><div class="eyebrow">ROMA 21 · ANNO SCOUT 2026–2027</div><h1>Pronti a partire.<br><em>Con tutte le informazioni.</em></h1><p>Una sola compilazione, due schede: essenziale da portare in attività, originale da firmare e lasciare in sede.</p><div class="hero-foot"><span>01 Compila</span><span>02 Scarica lo ZIP</span><span>03 Stampa e firma</span></div></section>
+    <div class="workspace"><aside><nav id="steps" aria-label="Sezioni della scheda"></nav><div class="aside-note"><strong>La scheda viaggia con te.</strong><p>Nessun account. Nessun invio di dati. Lo ZIP permette di riprendere la compilazione e ricreare entrambi i PDF.</p></div><button class="text-button" id="reset">Svuota la scheda</button></aside><div class="main-column">
+      <section class="import-card"><div><strong>Hai già una scheda?</strong><p>Importa lo ZIP per modificarla o ottenere l’originale compilato.</p></div><button class="button secondary" id="import-trigger" type="button">Importa ZIP <span aria-hidden="true">↗</span></button><input id="import-file" type="file" accept=".zip,application/zip" hidden></section>
+      <div id="notice" role="status" aria-live="polite"></div>
+      <form id="health-form" novalidate><section class="form-card" id="section-content"></section><div class="form-actions"><button type="button" class="button secondary" id="previous">Indietro</button><span id="step-count"></span><button type="button" class="button primary" id="next">Continua <span aria-hidden="true">→</span></button></div></form>
+      <p class="privacy-note">I dati restano in memoria finché questa pagina è aperta. Scarica lo ZIP prima di chiuderla: non vengono salvati automaticamente.</p>
+    </div></div>
+    <footer>Scout d’Europa · Gruppo Roma 21 <a href="/campo/">Consulta le schede del campo offline →</a><a href="/public/modello-originale.pdf" target="_blank" rel="noopener">Consulta il modello originale · 11 pagine ↗</a></footer>
+  </main>
+</body></html>
