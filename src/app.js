@@ -1,8 +1,10 @@
 import { sections, allFields, active, validate, cleanData, fullName } from './schema.js';
 import { dataBlocks, originalPdf } from './pdf.js';
 import { createArchive, readArchive, download, filename } from './archive.js';
+import { canShareFile, shareFile } from './share.js';
 const LAST=sections.length-1;
 let data={}, current=0, errors={}, busy=false, dirty=false;
+let preparedZip=null, preparingZip=null, zipError='';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const content=await(await fetch('/src/content.json')).json();
@@ -20,7 +22,7 @@ function introduction() {return `<div class="info-box"><strong>Prima di compilar
 function declarationInfo(){return `<details open><summary>Dichiarazione del modello originale</summary><div class="document-text">${esc(content.declaration)}\n\n(*) Il punto 4 riguarda solo i minorenni.</div></details>${data.consent==='no'?'<div class="info-box warning">Hai scelto di non prestare il consenso. Il modello segnala che il rifiuto dei dati o la loro inesattezza potrebbe impedire la partecipazione alle attività. La tua scelta sarà riportata nei PDF.</div>':''}`;}
 function review(){
   const invalid=validate(data);const count=Object.keys(invalid).length;
-  return `${count?`<div class="info-box warning"><strong>Mancano ${count} risposte o correzioni.</strong><p>Torna alle sezioni evidenziate per completare la scheda.</p><button type="button" class="text-button" id="fix-errors">Vai al primo campo da correggere →</button></div>`:''}<div class="download-grid"><article><span class="file-tag">ZIP · PER LE ATTIVITÀ</span><h3>La scheda essenziale</h3><p>JSON con i dati e PDF compatto, senza pagine informative o sezioni vuote. Il numero di pagine si adatta alle risposte.</p><button type="button" class="button primary" id="export-zip" ${count?'disabled':''}>Scarica ZIP ↓</button></article><article><span class="file-tag">PDF · PER LA SEDE</span><h3>Il modello originale</h3><p>Le 11 pagine originali compilate, con eventuale allegato per i testi lunghi. Spazi per le firme lasciati liberi.</p><button type="button" class="button secondary" id="export-original" ${count?'disabled':''}>Scarica originale ↓</button></article></div><div class="info-box"><strong>Prima di consegnare</strong><p>Controlla e firma le copie. ${data.administration==='yes'?'Allega la prescrizione medica e consegna i farmaci con la posologia al Capo Unità. ':''}${data.currentPresent==='yes'?'In caso di malattie croniche allega la copia del tesserino di esenzione. ':''}Conserva lo ZIP con cura: contiene dati sanitari leggibili, senza password.</p></div><div class="review-heading"><h3>Riepilogo · ${esc(fullName(data))}</h3><span>Controlla prima di stampare</span></div>${dataBlocks(data).map(([title,rows])=>`<details open class="review-section"><summary>${esc(title)}</summary><dl>${rows.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></details>`).join('')}<details open class="review-section"><summary>Dichiarazioni e consenso</summary><dl>${[['Consenso',data.consent==='yes'?'Presto il consenso':data.consent==='no'?'Non presto il consenso':'Non indicato'],['Dichiarante',data.declarant||fullName(data)],['Dichiarazioni confermate',data.declarationAccepted?'Sì':'Non confermate'],['Luogo e data',[data.place,data.date].filter(Boolean).join(' · ')]].map(([l,v])=>`<div><dt>${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl></details>`;
+  return `${count?`<div class="info-box warning"><strong>Mancano ${count} risposte o correzioni.</strong><p>Torna alle sezioni evidenziate per completare la scheda.</p><button type="button" class="text-button" id="fix-errors">Vai al primo campo da correggere →</button></div>`:''}<div class="download-grid"><article><span class="file-tag">ZIP · PER LE ATTIVITÀ</span><h3>La scheda essenziale</h3><p>JSON con i dati e PDF compatto, senza pagine informative o sezioni vuote. Il numero di pagine si adatta alle risposte.</p><button type="button" class="button primary" id="export-zip" disabled>Preparazione ZIP…</button><button type="button" class="button secondary" id="download-zip" hidden>Scarica ZIP ↓</button><button type="button" class="text-button" id="retry-zip" hidden>Riprova la preparazione</button><p class="zip-status" id="zip-status" role="status" aria-live="polite"></p></article><article><span class="file-tag">PDF · PER LA SEDE</span><h3>Il modello originale</h3><p>Le 11 pagine originali compilate, con eventuale allegato per i testi lunghi. Spazi per le firme lasciati liberi.</p><button type="button" class="button secondary" id="export-original" ${count?'disabled':''}>Scarica originale ↓</button></article></div><div class="info-box"><strong>Prima di consegnare</strong><p>Controlla e firma le copie. ${data.administration==='yes'?'Allega la prescrizione medica e consegna i farmaci con la posologia al Capo Unità. ':''}${data.currentPresent==='yes'?'In caso di malattie croniche allega la copia del tesserino di esenzione. ':''}Conserva lo ZIP con cura: contiene dati sanitari leggibili, senza password.</p></div><div class="review-heading"><h3>Riepilogo · ${esc(fullName(data))}</h3><span>Controlla prima di stampare</span></div>${dataBlocks(data).map(([title,rows])=>`<details open class="review-section"><summary>${esc(title)}</summary><dl>${rows.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></details>`).join('')}<details open class="review-section"><summary>Dichiarazioni e consenso</summary><dl>${[['Consenso',data.consent==='yes'?'Presto il consenso':data.consent==='no'?'Non presto il consenso':'Non indicato'],['Dichiarante',data.declarant||fullName(data)],['Dichiarazioni confermate',data.declarationAccepted?'Sì':'Non confermate'],['Luogo e data',[data.place,data.date].filter(Boolean).join(' · ')]].map(([l,v])=>`<div><dt>${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl></details>`;
 }
 function render(focus=false) {
   const globalErrors=validate(data);
@@ -30,8 +32,11 @@ function render(focus=false) {
   $('.form-actions').classList.toggle('last',current===LAST);$('#previous').hidden=current===0;$('#next').hidden=current===LAST;$('#next').textContent=current===LAST-1?'Rivedi e scarica →':'Continua →';$('#step-count').textContent=`${current+1} di ${sections.length}`;
   $('#steps').querySelectorAll('button').forEach(b=>b.onclick=()=>go(Number(b.dataset.step)));
   $('#fix-errors')?.addEventListener('click',()=>{const i=sections.findIndex(s=>s.fields.some(f=>globalErrors[f.id]));errors=globalErrors;go(i);setTimeout(()=>document.getElementById(Object.keys(globalErrors)[0])?.focus(),0);});
-  $('#export-zip')?.addEventListener('click',()=>exportFile('zip'));
-  $('#export-original')?.addEventListener('click',()=>exportFile('original'));
+  $('#export-zip')?.addEventListener('click',()=>sendZip());
+  $('#download-zip')?.addEventListener('click',()=>sendZip(true));
+  $('#retry-zip')?.addEventListener('click',()=>{zipError='';prepareZip();});
+  $('#export-original')?.addEventListener('click',()=>exportOriginal());
+  if(current===LAST)prepareZip();
   if(focus){$('#section-content h2').focus();$('#section-content').scrollIntoView({behavior:'smooth',block:'start'});}
 }
 function go(index){if(busy)return;current=index;render(true);}
@@ -39,6 +44,7 @@ function notify(message,error=false){$('#notice').textContent=message;$('#notice
 $('#health-form').addEventListener('input',e=>{
   const f=allFields.find(f=>f.id===e.target.name);if(!f)return;
   data[f.id]=f.type==='checkbox'?e.target.checked:e.target.value;
+  invalidateZip();
   dirty=true;delete errors[f.id];
   if(f.type==='select'){render();document.getElementById(f.id)?.focus();}
   else {e.target.removeAttribute('aria-invalid');document.getElementById(f.id+'-error').textContent='';}
@@ -46,20 +52,61 @@ $('#health-form').addEventListener('input',e=>{
 $('#health-form').addEventListener('submit',e=>e.preventDefault());
 $('#next').onclick=()=>{if(busy)return;errors=validate(data,current);if(Object.keys(errors).length){render();document.getElementById(Object.keys(errors)[0])?.focus();notify('Completa le voci evidenziate per continuare.',true);return;}notify('');go(Math.min(LAST,current+1));};
 $('#previous').onclick=()=>go(Math.max(0,current-1));
-$('#reset').onclick=()=>{if(busy)return;if(Object.keys(data).length&&!confirm('Svuotare tutti i dati inseriti? Assicurati di aver scaricato lo ZIP se vuoi conservarli.'))return;data={};errors={};dirty=false;notify('Scheda svuotata.');go(0);};
-async function exportFile(type){
+$('#reset').onclick=()=>{if(busy)return;if(Object.keys(data).length&&!confirm('Svuotare tutti i dati inseriti? Assicurati di aver scaricato o condiviso lo ZIP se vuoi conservarli.'))return;data={};errors={};dirty=false;invalidateZip();notify('Scheda svuotata.');go(0);};
+function invalidateZip(){preparedZip=null;preparingZip=null;zipError='';}
+function currentZip(){const key=JSON.stringify(cleanData(data));return preparedZip?.key===key?preparedZip.file:null;}
+function updateZipControls(){
+  const primary=$('#export-zip');if(!primary)return;
+  const file=currentZip();const valid=!Object.keys(validate(data)).length;
+  const sharable=!!file&&canShareFile(file);
+  primary.disabled=!valid||!file||busy;
+  primary.textContent=file?(sharable?'Condividi ZIP ↗':'Scarica ZIP ↓'):(zipError?'ZIP non disponibile':'Preparazione ZIP…');
+  $('#download-zip').hidden=!sharable;$('#download-zip').disabled=busy;
+  $('#retry-zip').hidden=!zipError||!valid;$('#retry-zip').disabled=busy;
+  $('#zip-status').textContent=zipError||(!valid?'Completa le risposte per preparare il pacchetto.':!file?'Preparazione del pacchetto sul dispositivo…':sharable?'Scegli WhatsApp o un’altra app dal menu del telefono, oppure salva il file.':'Questo browser non supporta la condivisione dei file ZIP. Puoi scaricarlo e allegarlo dall’app che preferisci.');
+}
+async function prepareZip(){
+  if(Object.keys(validate(data)).length){updateZipControls();return;}
+  const clean=cleanData(data),key=JSON.stringify(clean);
+  if(preparedZip?.key===key||preparingZip?.key===key||zipError){updateZipControls();return;}
+  const job={key};preparingZip=job;updateZipControls();
+  try{
+    const bytes=await createArchive(clean);
+    if(preparingZip!==job)return;
+    preparedZip={key,file:new File([bytes],filename(clean)+'-scheda.zip',{type:'application/zip'})};
+  }catch(error){if(preparingZip===job)zipError='Preparazione ZIP non riuscita: '+error.message;}
+  finally{if(preparingZip===job){preparingZip=null;updateZipControls();}}
+}
+async function sendZip(downloadOnly=false){
+  if(busy)return;
+  const file=currentZip();
+  if(!file){prepareZip();return;}
+  if(downloadOnly||!canShareFile(file)){
+    download(file,file.name,file.type);dirty=false;notify('ZIP pronto. Conserva questo file per riprendere la scheda.');return;
+  }
+  busy=true;document.body.classList.add('busy');updateZipControls();
+  try{
+    // No await before shareFile: keep this click's user activation for iOS/Android.
+    await shareFile(file);
+    dirty=false;notify('Condivisione avviata. Puoi anche scaricare una copia dello ZIP.');
+  }catch(error){
+    if(error.name==='AbortError')notify('Condivisione annullata. Puoi riprovare o scaricare lo ZIP.');
+    else notify('Non è stato possibile condividere il file. Riprova oppure usa “Scarica ZIP”.',true);
+  }finally{busy=false;document.body.classList.remove('busy');updateZipControls();}
+}
+async function exportOriginal(){
   if(busy)return;const issues=validate(data);if(Object.keys(issues).length){errors=issues;render();return;}
   busy=true;document.body.classList.add('busy');notify('Preparazione del file in corso…');
-  try{const clean=cleanData(data);const bytes=type==='zip'?await createArchive(clean):await originalPdf(clean);download(bytes,filename(clean)+(type==='zip'?'-scheda.zip':'-originale-da-firmare.pdf'),type==='zip'?'application/zip':'application/pdf');if(type==='zip')dirty=false;notify(type==='zip'?'ZIP pronto. Conserva questo file per riprendere la scheda.':'PDF originale pronto. Controllalo e apponi le firme sulla copia stampata.');}
+  try{const clean=cleanData(data);const bytes=await originalPdf(clean);download(bytes,filename(clean)+'-originale-da-firmare.pdf','application/pdf');notify('PDF originale pronto. Controllalo e apponi le firme sulla copia stampata.');}
   catch(e){notify('Download non riuscito: '+e.message,true);}
-  finally{busy=false;document.body.classList.remove('busy');}
+  finally{busy=false;document.body.classList.remove('busy');updateZipControls();}
 }
 $('#import-trigger').onclick=()=>{if(!busy)$('#import-file').click();};
 $('#import-file').onchange=async e=>{
   const file=e.target.files[0];if(!file||busy)return;busy=true;document.body.classList.add('busy');
-  try{const imported=await readArchive(file);if(Object.keys(data).length&&!confirm('Sostituire i dati attuali con quelli contenuti nello ZIP?'))return;data=imported;errors={};dirty=false;current=LAST;render(true);notify('Scheda importata. Puoi scaricare l’originale o modificare qualsiasi sezione.');}
+  try{const imported=await readArchive(file);if(Object.keys(data).length&&!confirm('Sostituire i dati attuali con quelli contenuti nello ZIP?'))return;data=imported;errors={};dirty=false;invalidateZip();current=LAST;render(true);notify('Scheda importata. Puoi condividere il pacchetto, scaricare l’originale o modificare qualsiasi sezione.');}
   catch(err){notify('Importazione non riuscita: '+err.message,true);}
-  finally{e.target.value='';busy=false;document.body.classList.remove('busy');}
+  finally{e.target.value='';busy=false;document.body.classList.remove('busy');updateZipControls();}
 };
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 render();

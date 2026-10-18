@@ -5,3 +5,5 @@
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 
 .form-actions.last{position:static}
+
+#download-zip[hidden],#retry-zip[hidden]{display:none}.download-grid p.zip-status{flex:none;margin:10px 0 0;font-size:10px;line-height:1.7}.download-grid #download-zip{flex:none}

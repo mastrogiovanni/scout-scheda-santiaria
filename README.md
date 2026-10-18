@@ -155,3 +155,13 @@ TEST_BASE_URL=https://nome-progetto.netlify.app npm run test:campo
 Le prove usano soltanto dati fittizi nel browser; non inviano le risposte a Netlify. Sono state eseguite sulla build pubblicabile con gli header di produzione, includendo il riavvio del browser senza rete.
 
 Riferimenti: [configurazione Netlify](https://docs.netlify.com/build/configure-builds/file-based-configuration/), [header personalizzati](https://docs.netlify.com/manage/routing/headers/), [deploy manuali](https://docs.netlify.com/deploy/create-deploys/).
+
+## Condivisione dello ZIP dal cellulare
+
+Nel riepilogo del compilatore, il pacchetto viene preparato sul dispositivo prima di abilitare il pulsante. Se il browser accetta la condivisione di quel file ZIP, l’azione principale è **Condividi ZIP**: apre il menu del sistema, dove l’utente sceglie WhatsApp, email o un’altra app disponibile. Il file condiviso contiene lo stesso JSON e PDF compatto del download; non viene condiviso un link alla pagina e non viene caricato su un server dell’applicazione. Resta disponibile anche **Scarica ZIP**.
+
+Il menu si apre direttamente dal tocco su un file già pronto, per conservare l’attivazione dell’utente richiesta sui telefoni. Modificare le risposte invalida il file preparato e genera un nuovo pacchetto. Se l’utente annulla il menu, non viene avviato un download automatico: può riprovare o scaricare il file esplicitamente.
+
+La disponibilità dipende dal browser, dal sistema e dal tipo di file: alcuni browser condividono testi o PDF ma rifiutano gli ZIP. In quel caso compare **Scarica ZIP**, con l’indicazione di allegare il file dall’app desiderata (per esempio come documento su WhatsApp). La verifica usa `navigator.canShare({files:[file]})` sullo ZIP reale; non forza la condivisione cambiando estensione o tipo del file. Riferimento: [MDN: condivisione di file](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share).
+
+`npm run test:share` verifica la condivisione con una preparazione lenta, l’attivazione al momento del tocco, nome e contenuto del file, annullamento, errore di autorizzazione, aggiornamento delle risposte e download alternativo. Il menu nativo è simulato nei test: nessun file viene inviato ad app o destinatari reali. La presenza di WhatsApp nel menu va provata sul telefono usato.

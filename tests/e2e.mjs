@@ -31,6 +31,7 @@ try {
     assert.equal(await page.locator('.field-error:not(:empty)').count(),0,'Step '+step+' validation failed');
   }
   await page.getByRole('heading',{name:'La tua scheda è pronta'}).waitFor();
+  await page.locator('#export-zip:not([disabled])').waitFor();
   assert.equal(await page.locator('#export-zip').isEnabled(),true,'Export disabled: '+await page.locator('#section-content').innerText());
   const download=page.waitForEvent('download');await page.locator('#export-zip').click();await (await download.catch(async e=>{console.error(await page.locator('#notice').innerText());console.error(errors);throw e;})).saveAs('tmp/pdfs/basic.zip');
   const original=page.waitForEvent('download');await page.locator('#export-original').click();await(await original).saveAs('tmp/pdfs/basic-original.pdf');
