@@ -1,4 +1,4 @@
-const VERSION='scout-campo-shell-v4';
+const VERSION='scout-campo-shell-v5';
 const ASSETS=[
   '/campo/','/campo/index.html','/campo/style.css','/campo/app.js','/campo/store.js','/campo/packages.js','/campo/manifest.webmanifest',
   '/public/brand/fse-emblem.png','/campo/icons/icon-192.png','/campo/icons/icon-512.png','/campo/icons/maskable-512.png',

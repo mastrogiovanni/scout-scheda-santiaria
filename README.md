@@ -24,7 +24,7 @@ Le risposte sono mantenute soltanto in memoria. Ricaricare o chiudere la pagina 
 
 ## Stile delle interfacce
 
-Compilazione, archivio del campo e area capi condividono una palette blu uniforme, verde bosco e avorio, con accenti rossi e oro. I pannelli hanno margini interni più compatti; sul telefono i pulsanti principali mantengono almeno 44 px di altezza e i campi di compilazione usano 16 px per evitare lo zoom automatico.
+Compilazione, archivio del campo e area capi condividono una palette blu uniforme, verde bosco e avorio, con accenti rossi e oro. I pannelli hanno margini interni più compatti; sul telefono i pulsanti principali mantengono almeno 44 px di altezza e i testi principali usano 16 px, le note 14 px e i campi di compilazione 17 px per evitare lo zoom automatico.
 
 Croce e giglio FSE sono serviti localmente da `public/brand/fse-emblem.png`, inclusi nella cache offline e usati anche nelle icone dell’app del campo. Fonte e attribuzione sono in `public/brand/README.md`; nessuna risorsa del sito FSE viene richiesta durante l’uso delle app.
 
