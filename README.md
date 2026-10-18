@@ -22,6 +22,12 @@ Aprire http://127.0.0.1:4173. Per eseguire l’app non occorre installare pacche
 
 Le risposte sono mantenute soltanto in memoria. Ricaricare o chiudere la pagina le elimina; il browser avvisa quando ci sono modifiche non esportate. Lo ZIP contiene dati sanitari in chiaro e non è cifrato. Il consenso può essere concesso o negato: entrambe le scelte vengono riportate, senza preselezione.
 
+## Stile delle interfacce
+
+Compilazione, archivio del campo e area capi condividono una palette blu uniforme, verde bosco e avorio, con accenti rossi e oro. I pannelli hanno margini interni più compatti; sul telefono i pulsanti principali mantengono almeno 44 px di altezza e i campi di compilazione usano 16 px per evitare lo zoom automatico.
+
+Croce e giglio FSE sono serviti localmente da `public/brand/fse-emblem.png`, inclusi nella cache offline e usati anche nelle icone dell’app del campo. Fonte e attribuzione sono in `public/brand/README.md`; nessuna risorsa del sito FSE viene richiesta durante l’uso delle app.
+
 ## PDF e fedeltà del modello
 
 - **Compatto:** impaginazione A4 dinamica con dati, dichiarazioni applicabili, scelta del consenso e firme. Copertina, informazioni preliminari e informativa non vengono stampate. Numero di pagine variabile in base ai contenuti; una scheda semplice occupa circa 1 pagina, una scheda con tutte le sezioni valorizzate circa 2.

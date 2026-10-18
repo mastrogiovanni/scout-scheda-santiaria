@@ -46,7 +46,7 @@ function contactHtml(d){
 }
 function renderDetail(){
   const record=records.find(r=>r.id===selected);
-  if(!record){$('#scout-detail').innerHTML='<div class="empty-detail"><span class="empty-symbol" aria-hidden="true">✳</span><h2>Ogni scout, una scheda.</h2><p>Seleziona un nome dall’elenco per consultare le informazioni sanitarie e chiamare i contatti.</p><p class="small">Tutte le schede caricate restano sul dispositivo, anche dopo la chiusura dell’app.</p></div>';return;}
+  if(!record){$('#scout-detail').innerHTML='<div class="empty-detail"><span class="empty-symbol" aria-hidden="true"></span><h2>Ogni scout, una scheda.</h2><p>Seleziona un nome dall’elenco per consultare le informazioni sanitarie e chiamare i contatti.</p><p class="small">Tutte le schede caricate restano sul dispositivo, anche dopo la chiusura dell’app.</p></div>';return;}
   const d=record.data;
   const attention=[['allergies','Allergie'],['current','Patologie e terapie in corso'],['diet','Dieta e alimenti vietati'],['aids','Protesi e ausili'],['doctorNotes','Indicazioni per il medico'],['updates','Aggiornamenti']].filter(([id])=>d[id+'Present']==='yes').map(([id,label])=>`<article class="health-card ${id==='allergies'?'allergy-card':''}"><h3>${label}</h3><p>${esc(d[id+'Details'])}</p></article>`);
   if(d.mri==='yes')attention.push(`<article class="health-card allergy-card"><h3>Controindicazioni alla risonanza magnetica</h3><p>${esc(d.mriDetails||'Controindicazione dichiarata nella scheda.')}</p></article>`);

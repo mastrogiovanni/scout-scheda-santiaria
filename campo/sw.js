@@ -1,7 +1,7 @@
-const VERSION='scout-campo-shell-v3';
+const VERSION='scout-campo-shell-v4';
 const ASSETS=[
   '/campo/','/campo/index.html','/campo/style.css','/campo/app.js','/campo/store.js','/campo/packages.js','/campo/manifest.webmanifest',
-  '/campo/icons/icon-192.png','/campo/icons/icon-512.png','/campo/icons/maskable-512.png',
+  '/public/brand/fse-emblem.png','/campo/icons/icon-192.png','/campo/icons/icon-512.png','/campo/icons/maskable-512.png',
   '/src/style.css','/src/schema.js','/src/pdf.js','/src/archive.js','/src/content.json',
   '/public/vendor/pdf-lib.min.js','/public/vendor/jszip.min.js','/public/vendor/fontkit.umd.min.js',
   '/public/vendor/NotoSans-Regular.ttf','/public/vendor/NotoSans-Bold.ttf','/public/modello-originale.pdf'
