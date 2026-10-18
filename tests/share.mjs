@@ -31,7 +31,7 @@ try{
   },basic);
   const input=output+'/input.zip';await writeFile(input,Buffer.from(zip,'base64'));
   // Make preparation outlast transient user activation, as PDF generation may on phones.
-  await page.reload();let delayed=false;
+  await page.reload();await page.getByRole('heading',{name:'Prima di iniziare'}).waitFor();let delayed=false;
   await page.route('**/public/modello-originale.pdf',async route=>{if(!delayed){delayed=true;await new Promise(resolve=>setTimeout(resolve,6000));}await route.continue();});
   await page.locator('#import-file').setInputFiles(input);
   await page.locator('#export-zip').waitFor();assert.equal(await page.locator('#export-zip').isDisabled(),true);
@@ -72,7 +72,7 @@ try{
       Object.defineProperty(navigator,'canShare',{value:()=>true});
       Object.defineProperty(navigator,'share',{value:()=>{window.nativeShareCalls++;return Promise.reject(new DOMException('Permission denied','NotAllowedError'));}});
     },clientHints);
-    const mobile=await android.newPage();await mobile.goto(base+'/');await mobile.locator('#import-file').setInputFiles(input);await mobile.locator('#export-zip:not([disabled])').waitFor();
+    const mobile=await android.newPage();await mobile.goto(base+'/');await mobile.getByRole('heading',{name:'Prima di iniziare'}).waitFor();await mobile.locator('#import-file').setInputFiles(input);await mobile.locator('#export-zip:not([disabled])').waitFor();
     assert.equal(await mobile.locator('#export-zip').innerText(),'Scarica ZIP ↓');assert.match(await mobile.locator('#zip-status').innerText(),/Android.*bloccano/);
     assert.equal(await mobile.locator('#zip-help').isVisible(),true);assert.equal(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     assert.equal(await mobile.evaluate(async()=>{const {canShareFile}=await import('/src/share.js');return canShareFile(new File(['example'],'example.pdf',{type:'application/pdf'}));}),true,'The Android guard must apply to ZIPs only');
