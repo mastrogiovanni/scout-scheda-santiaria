@@ -49,8 +49,8 @@ try{
   // Canceling leaves the ZIP ready and does not download or regenerate it.
   await page.evaluate(()=>window.shareMode='AbortError');await page.locator('#export-zip').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.startsWith('Condivisione annullata'));
   assert.equal(downloads,0);assert.equal(await page.locator('#export-zip').isEnabled(),true);
-  await page.evaluate(()=>window.shareMode='NotAllowedError');await page.locator('#export-zip').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.startsWith('Non è stato possibile condividere'));
-  assert.equal(downloads,0);
+  await page.evaluate(()=>window.shareMode='NotAllowedError');await page.locator('#export-zip').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('(NotAllowedError)'));
+  assert.equal(downloads,0);assert.equal(await page.locator('#zip-help').isVisible(),true);assert.match(await page.locator('#zip-status').innerText(),/NotAllowedError/);
   const fallback=page.waitForEvent('download');await page.locator('#download-zip').click();await(await fallback).saveAs(output+'/download-fallback.zip');assert.equal(downloads,1);
   // Editing invalidates the already prepared file: share must contain the new answers.
   await page.evaluate(()=>window.shareMode='success');await page.locator('[data-step="1"]').click();await page.locator('#name').fill('Luisa');await page.locator('[data-step="7"]').click();await page.locator('#export-zip:not([disabled])').waitFor();
@@ -62,5 +62,41 @@ try{
     assert.equal(await page.locator('#export-zip').innerText(),'Scarica ZIP ↓');assert.equal(await page.locator('#download-zip').isHidden(),true);
     const count=await page.evaluate(()=>window.shareCalls.length);const download=page.waitForEvent('download');await page.locator('#export-zip').click();await(await download).saveAs(output+'/fallback-'+support+'.zip');assert.equal(await page.evaluate(()=>window.shareCalls.length),count);
   }
-  assert.deepEqual(errors,[]);console.log('PASS: ZIP shared as a File with fresh user activation after slow preparation; correct JSON/PDF; cancellation, denied sharing, explicit download, revised answers, ZIP-unsupported fallback and mobile layout. Native share targets are mocked: no file is actually sent.');
+  // Android Chromium's native backend rejects ZIPs even when canShare returns true.
+  // Also cover desktop-mode/reduced UA with Android reported by Client Hints.
+  for(const clientHints of [false,true]){
+    const android=await browser.newContext({acceptDownloads:true,viewport:{width:390,height:844},userAgent:clientHints?'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36':'Mozilla/5.0 (Linux; Android 16; Motorola Edge 60) AppleWebKit/537.36 Chrome/141.0.0.0 Mobile Safari/537.36'});
+    await android.addInitScript(clientHints=>{
+      if(clientHints)Object.defineProperty(navigator,'userAgentData',{value:{platform:'Android',brands:[{brand:'Chromium',version:'141'}]}});
+      window.nativeShareCalls=0;
+      Object.defineProperty(navigator,'canShare',{value:()=>true});
+      Object.defineProperty(navigator,'share',{value:()=>{window.nativeShareCalls++;return Promise.reject(new DOMException('Permission denied','NotAllowedError'));}});
+    },clientHints);
+    const mobile=await android.newPage();await mobile.goto(base+'/');await mobile.locator('#import-file').setInputFiles(input);await mobile.locator('#export-zip:not([disabled])').waitFor();
+    assert.equal(await mobile.locator('#export-zip').innerText(),'Scarica ZIP ↓');assert.match(await mobile.locator('#zip-status').innerText(),/Android.*bloccano/);
+    assert.equal(await mobile.locator('#zip-help').isVisible(),true);assert.equal(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    assert.equal(await mobile.evaluate(async()=>{const {canShareFile}=await import('/src/share.js');return canShareFile(new File(['example'],'example.pdf',{type:'application/pdf'}));}),true,'The Android guard must apply to ZIPs only');
+    const downloaded=mobile.waitForEvent('download');await mobile.locator('#export-zip').click();await(await downloaded).saveAs(output+'/android-'+clientHints+'.zip');assert.equal(await mobile.evaluate(()=>window.nativeShareCalls),0);
+    if(!clientHints)await mobile.screenshot({path:output+'/android-download.png',fullPage:true});
+    // Optional local regression with a real private ZIP: no values, screenshots,
+    // or generated artifacts are logged/saved; never run this against a remote host.
+    if(process.env.PRIVATE_ZIP_PATH&&!clientHints){
+      assert.equal(new URL(base).hostname,'127.0.0.1');
+      mobile.on('dialog',dialog=>dialog.accept());
+      await mobile.route('**/*',route=>new URL(route.request().url()).origin===new URL(base).origin?route.continue():route.abort());
+      await mobile.evaluate(()=>{document.getElementById('notice').textContent='';document.getElementById('import-file').addEventListener('change',e=>{window.privateZip=e.target.files[0];},{once:true,capture:true});});
+      await mobile.locator('#import-file').setInputFiles(resolve(process.env.PRIVATE_ZIP_PATH));await mobile.waitForFunction(()=>document.getElementById('notice').textContent.startsWith('Scheda importata.'));await mobile.locator('#export-zip:not([disabled])').waitFor();
+      // Compare only in memory: imported answers must survive ZIP regeneration.
+      const checked=await mobile.evaluate(async()=>{
+        const {readArchive,createArchive}=await import('/src/archive.js');
+        const {cleanData}=await import('/src/schema.js');
+        const original=await readArchive(window.privateZip);
+        const regenerated=await readArchive(new File([await createArchive(original)],'check.zip',{type:'application/zip'}));
+        return JSON.stringify(cleanData(original))===JSON.stringify(regenerated);
+      });
+      assert.equal(checked,true);console.log('PASS: private ZIP validated and round-tripped locally; no personal data logged or uploaded.');
+    }
+    await android.close();
+  }
+  assert.deepEqual(errors,[]);console.log('PASS: ZIP sharing activation, JSON/PDF, cancellation, readable error, explicit download, edits, mobile layout and Android Chromium ZIP rejection fallback. Native share targets are mocked: no file is actually sent.');
 }finally{await browser.close();}
