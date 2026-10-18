@@ -1,6 +1,6 @@
 # Scheda sanitaria scout
 
-Frontend responsive in italiano per il modello FSE Roma 21, anno scout 2026–2027. La compilazione, l’importazione ZIP e la generazione dei PDF avvengono nel browser. Il server serve esclusivamente file statici: non riceve né memorizza le risposte.
+Frontend responsive in italiano per il modello FSE Roma 21, anno scout 2026–2027. La compilazione, l’importazione ZIP e la generazione dei PDF avvengono nel browser. La consegna online è facoltativa: con un invito personale, “Invia al gruppo” carica lo ZIP in un archivio privato Supabase tramite Netlify Functions. Senza invio esplicito, la compilazione e il download restano locali.
 
 ## Avvio
 
@@ -43,7 +43,7 @@ Il limite di importazione è 12 MB compressi, 10 voci, 16 MB per voce e 256 KB p
 - `src/pdf.js`: impaginazione compatta, coordinate del modello e gestione dei testi lunghi.
 - `src/archive.js`: esportazione e importazione ZIP.
 - `src/content.json`: informazioni e dichiarazioni estratte dal modello.
-- `scripts/serve.mjs`: server statico locale, senza endpoint per dati sanitari.
+- `scripts/serve.mjs`: anteprima locale del frontend e dell’API di raccolta (disabilitata senza configurazione).
 
 ## Verifiche
 
@@ -131,7 +131,7 @@ Dopo che i file del progetto sono stati committati e inviati al repository, in N
 - Build command: `npm run build`.
 - Publish directory: `dist`.
 - Node.js: versione 22.
-- Dipendenze di sviluppo escluse dalla build; nessuna funzione server o variabile segreta richiesta dal sito.
+- Dipendenze di sviluppo escluse dalla build; compilazione e archivio offline funzionano senza segreti. Per la raccolta online sono necessarie le Netlify Functions e le variabili server descritte sotto.
 
 Il file di configurazione è pronto nel progetto locale; diventa disponibile a Netlify soltanto dopo il push. Per un progetto già esistente, collegare lo stesso repository e applicare le medesime impostazioni, mantenendone il dominio.
 
@@ -165,3 +165,36 @@ Il menu si apre direttamente dal tocco su un file già pronto, per conservare l�
 La disponibilità dipende dal browser, dal sistema e dal tipo di file: alcuni browser condividono testi o PDF ma rifiutano gli ZIP. In quel caso compare **Scarica ZIP**, con l’indicazione di allegare il file dall’app desiderata (per esempio come documento su WhatsApp). La verifica usa `navigator.canShare({files:[file]})` sullo ZIP reale. Su Android, Chromium può restituire `true` e poi rifiutare gli ZIP nel servizio nativo: per questi browser l’app propone direttamente il download, con istruzioni per aprire File/Download → selezionare lo ZIP → Condividi → WhatsApp, oppure allegarlo dalla chat come Documento. Il controllo riconosce Android anche tramite Client Hints nella modalità desktop. Non forza la condivisione cambiando estensione o tipo del file. Un errore nativo su altri browser mostra il codice e le stesse istruzioni, senza avviare download automatici. Riferimento del limite Android: [servizio Web Share di Chromium](https://github.com/chromium/chromium/blob/main/components/browser_ui/webshare/android/java/src/org/chromium/components/browser_ui/webshare/ShareServiceImpl.java). Riferimento: [MDN: condivisione di file](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share).
 
 `npm run test:share` verifica la condivisione con una preparazione lenta, l’attivazione al momento del tocco, nome e contenuto del file, annullamento, errore di autorizzazione, aggiornamento delle risposte e download alternativo. Verifica anche Android/Chromium con un falso positivo di `canShare`, inclusa la modalità desktop. Il menu nativo è simulato nei test: nessun file viene inviato ad app o destinatari reali. La presenza di WhatsApp nel menu va provata sul telefono usato.
+
+
+## Consegna online e area capi (Supabase)
+
+La terza pagina `/capi/` permette ai capi abilitati di creare raccolte con una scadenza e una data di cancellazione online, distribuire inviti personali, leggere le consegne e preparare un backup compatibile con l’app `/campo/`. Il collegamento va copiato e inviato personalmente: l’app non invia messaggi WhatsApp alle famiglie. Il link completo è mostrato una sola volta; nel database viene conservata solo la sua impronta SHA-256. Può essere revocato. Un nuovo invito permette di consegnare una correzione senza sovrascrivere la precedente; il capo deve selezionare esplicitamente una sola versione per persona prima di creare il backup.
+
+Le famiglie compilano o importano un vecchio ZIP e scelgono esplicitamente di inviarlo al gruppo indicato. Il browser carica lo ZIP direttamente su Supabase usando un URL firmato per un singolo oggetto, senza cambiarne estensione o tipo. Il server controlla dimensione, indice ZIP, decompressione limitata, CRC, JSON, modello e risposte, e verifica l’impronta del file prima di registrare la consegna. Un upload interrotto non produce ricevuta; i tentativi ripetuti restituiscono la stessa ricevuta dopo il salvataggio. Il limite è 12 MB, due file (`scheda.json` e `scheda-compatta.pdf`), 256 KB per il JSON e 16 MB per il PDF estratto. Non vengono acquisiti documenti firmati o prescrizioni.
+
+L’area capi usa Supabase Auth con link email e PKCE, cookie HttpOnly/Secure/SameSite, verifica dell’account e dell’abilitazione a ogni richiesta e controllo dell’origine. Il link va aperto nello stesso browser. I capi autorizzati appartengono allo stesso gruppo e accedono a tutte le raccolte; il ruolo amministratore può abilitare o disabilitare altri capi. La disabilitazione non cancella le copie già scaricate. Nessun contenuto sanitario viene inserito nelle notifiche email. Non vengono registrati payload, token, indirizzi IP in chiaro o ZIP nei log applicativi.
+
+### Configurazione del progetto esistente
+
+1. Nel progetto Supabase **Scout**, applicare una sola volta `supabase/migrations/202610180001_collection.sql`. La migrazione crea esclusivamente tabelle e funzioni con prefisso `scout_` e il bucket privato `scout-packages`. RLS è abilitata e i ruoli `anon` e `authenticated` non hanno accesso diretto alle tabelle o alle funzioni. Non vengono abilitate policy pubbliche per Storage.
+2. Abilitare il primo amministratore con una query nel SQL Editor: `insert into public.scout_leaders(email,role) values ('indirizzo-del-responsabile@example.org','admin');`. Usare l’indirizzo concordato, in minuscolo.
+3. In Authentication → URL Configuration, aggiungere esattamente `https://scout-sanitaria.netlify.app/capi/` agli URL di reindirizzamento consentiti, conservando eventuali impostazioni di altre applicazioni. Verificare il provider email e la consegna tramite SMTP prima di abilitare altri capi: il servizio email predefinito di Supabase può limitare i destinatari agli account del team. Non occorre modificare il modello del link email standard per il flusso PKCE.
+4. In Netlify, configurare per il solo contesto **Production**, `SUPABASE_URL`, `SUPABASE_SECRET_KEY` e `SITE_URL` (vedere `.env.example`). La chiave segreta va copiata dalle API Keys del progetto e non deve entrare in Git, nel frontend, nelle variabili pubbliche o nei log. Marcare la chiave con **Contains secret values**. Limitare lo scope a Functions quando il piano lo permette; nei piani che consentono soltanto All scopes, il segreto sarà disponibile anche alla build e questo ambito deve essere approvato dal responsabile. Il nostro script di build non legge queste variabili e non le incorpora nei file statici. Non abilitarle per Deploy Previews o branch deploys.
+5. Pubblicare la build e le funzioni. Aprire `/capi/`, richiedere il link con l’indirizzo abilitato e verificare l’accesso. Creare una raccolta di prova e provare l’intero percorso con dati fittizi. Non usare schede reali per verificare la configurazione.
+
+Per lo sviluppo, impostare le variabili nel processo che avvia `npm start`; il server locale non legge automaticamente `.env`. Usare una configurazione e un progetto di test dedicati per eventuali prove reali. La CSP autorizza connessioni soltanto all’origine del sito e al progetto Supabase `wbzwxutrholchzodzwuy`: un cambio di progetto richiede l’aggiornamento di `deploy/_headers`.
+
+### Preparazione del campo e conservazione
+
+Il capo seleziona i pacchetti e sceglie **Prepara per il campo**, poi carica il backup nell’app offline sul telefono. Prima di partire verifica “Pronta offline” e riapre l’app in modalità aereo. Limiti: 400 inviti per raccolta e 75 MB per backup; selezioni più grandi vanno suddivise. Il download verifica anche l’impronta dei singoli pacchetti. Eventuali duplicati della stessa persona richiedono di scegliere una versione prima dell’esportazione.
+
+La funzione pianificata `pulisci-raccolte` cancella ogni giorno alle 03:00 UTC gli oggetti Storage delle raccolte scadute, inclusi upload incompleti, prima di rimuoverne le righe. La data viene scelta esplicitamente dal capo quando crea la raccolta. Le API bloccano l’accesso dopo la scadenza anche prima dell’esecuzione della pulizia. Le copie locali, gli ZIP già esportati e gli eventuali backup del fornitore restano distinti. La data di cancellazione deve quindi essere scelta secondo le esigenze dell’associazione.
+
+### Verifiche della raccolta
+
+`npm run test:server` verifica l’API con risposte Supabase simulate, autenticazione, autorizzazioni, origine, PKCE, cookie, URL firmati, ZIP danneggiati, impronta errata, mancata ricevuta in caso di errore, idempotenza e cancellazione degli oggetti prima delle righe.
+
+Con il server aggiornato avviato, `TEST_BASE_URL=http://127.0.0.1:4183 npm run test:raccolta` verifica il percorso mobile completo con API/Storage simulati: invito, scelta esplicita, caricamento, errore e nuovo tentativo, ricevuta, area capi, inviti personali, controllo consegne, backup, importazione nell’app del campo e riapertura offline. Non invia email, messaggi o schede reali. Il file `tests/collection-database.sql`, da eseguire dopo la migrazione, verifica sul database reale RLS, privilegi, bucket privato, idempotenza, inviti revocati/chiusi, limite di 400 inviti e rate limiting: tutti i record di prova sono racchiusi in una transazione annullata. Le prove non sostituiscono la verifica dell’invio effettivo e della consegna delle email sul progetto configurato.
+
+Riferimenti: [Supabase: bucket privati](https://supabase.com/docs/guides/storage/buckets/fundamentals), [autenticazione email](https://supabase.com/docs/guides/auth/auth-email-passwordless), [chiavi API](https://supabase.com/docs/guides/getting-started/api-keys).

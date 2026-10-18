@@ -4,3 +4,6 @@ output/
 .DS_Store
 dist/
 .netlify/
+.env
+.env.*
+!.env.example

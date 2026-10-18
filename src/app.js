@@ -2,6 +2,7 @@ import { sections, allFields, active, validate, cleanData, fullName } from './sc
 import { dataBlocks, originalPdf } from './pdf.js';
 import { createArchive, readArchive, download, filename } from './archive.js';
 import { canShareFile, shareFile, fileShareRestriction } from './share.js';
+import {initDelivery,deliveryHtml,mountDelivery} from './collection.js';
 const LAST=sections.length-1;
 let data={}, current=0, errors={}, busy=false, dirty=false;
 let preparedZip=null, preparingZip=null, zipError='', shareError='';
@@ -37,6 +38,7 @@ function render(focus=false) {
   $('#retry-zip')?.addEventListener('click',()=>{zipError='';prepareZip();});
   $('#export-original')?.addEventListener('click',()=>exportOriginal());
   if(current===LAST)prepareZip();
+  if(current===LAST){$('#section-content .download-grid').insertAdjacentHTML('afterend',deliveryHtml());mountDelivery();}
   if(focus){$('#section-content h2').focus();$('#section-content').scrollIntoView({behavior:'smooth',block:'start'});}
 }
 function go(index){if(busy)return;current=index;render(true);}
@@ -65,6 +67,7 @@ function updateZipControls(){
   $('#retry-zip').hidden=!zipError||!valid;$('#retry-zip').disabled=busy;
   $('#zip-status').textContent=zipError||shareError||(!valid?'Completa le risposte per preparare il pacchetto.':!file?'Preparazione del pacchetto sul dispositivo…':fileShareRestriction(file)||(sharable?'Scegli WhatsApp o un’altra app dal menu del telefono, oppure salva il file.':'Questo browser non supporta la condivisione dei file ZIP. Scaricalo e condividilo da File o Download.'));
   $('#zip-help').hidden=!file||(sharable&&!shareError);
+  mountDelivery();
 }
 async function prepareZip(){
   if(Object.keys(validate(data)).length){updateZipControls();return;}
@@ -116,3 +119,4 @@ $('#import-file').onchange=async e=>{
 };
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 render();
+initDelivery({getFile:currentZip,onSent:file=>{if(currentZip()===file)dirty=false;},notify,setBusy:value=>{busy=value;document.body.classList.toggle('busy',value);updateZipControls();}});

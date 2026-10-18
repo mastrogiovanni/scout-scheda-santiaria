@@ -15,7 +15,7 @@ async function collect(path){
   }else if(allowedExtensions.has(extname(path)))files.push({path:relative(root,path).split('\\').join('/'),bytes:await readFile(path)});
 }
 await collect(resolve(root,'index.html'));
-for(const folder of ['campo','src','public'])await collect(resolve(root,folder));
+for(const folder of ['campo','capi','src','public'])await collect(resolve(root,folder));
 for(const name of ['_headers','_redirects','404.html'])files.push({path:name,bytes:await readFile(resolve(root,'deploy',name))});
 const known=new Set(files.map(f=>'/'+f.path));
 known.add('/');known.add('/campo/');

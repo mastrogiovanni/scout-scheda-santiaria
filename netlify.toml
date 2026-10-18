@@ -12,3 +12,7 @@
   targetPort = 4173
   port = 8888
   autoLaunch = false
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

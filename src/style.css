@@ -9,3 +9,4 @@
 #download-zip[hidden],#retry-zip[hidden]{display:none}.download-grid p.zip-status{flex:none;margin:10px 0 0;font-size:10px;line-height:1.7}.download-grid #download-zip{flex:none}
 
 .zip-help[hidden]{display:none}.zip-help{margin-top:12px;padding:12px;background:#f2f5ed;border-radius:6px;font-size:11px;line-height:1.8;overflow-wrap:anywhere}.zip-help ol{padding-left:19px;margin:8px 0}.download-grid .zip-help p{margin:8px 0 0;color:inherit}
+.delivery-card{padding:22px;border:1px solid #b9cdbb;background:#f2f7ef;border-radius:8px;margin-bottom:24px;font-size:12px;line-height:1.8}.delivery-card h3{font:26px Georgia,serif;margin:10px 0}.delivery-card .button{margin-top:14px;white-space:normal}.delivery-card .check-row{background:white}.receipt-code{overflow-wrap:anywhere}#delivery-banner[hidden]{display:none}#delivery-banner{display:block}
