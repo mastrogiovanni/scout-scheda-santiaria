@@ -172,3 +172,13 @@ dialog h2{font-size:27px}
 
 .camp-stats [aria-pressed=true] strong{color:#fff}
 .camp-stats button:hover{border-color:var(--navy)}
+.camp-start-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end}
+.status-tag{background:var(--sage);padding:6px 10px;border-radius:5px;font-size:14px}
+.preparation-panel{padding:20px;background:white;border:1px solid var(--line);border-radius:10px;margin-bottom:20px}
+.preparation-panel[hidden]{display:none}
+.preparation-panel h2{font:28px Georgia,serif;color:var(--navy)}
+.preparation-panel p{line-height:1.7}
+#camp-video{display:block;width:100%;max-height:44vh;background:#142637;border-radius:8px;margin:14px 0}
+#fragment-progress{display:block;width:100%;height:28px;border-radius:4px;background:#dbe2e8}
+body[data-mode=preparation] .camp-stats,body[data-mode=preparation] .camp-workspace{display:none}
+@media(max-width:760px){.camp-start-actions{justify-content:flex-start}.preparation-panel{padding:14px}.camp-start-actions .button{width:100%}}

@@ -1,4 +1,4 @@
-import {readArchive} from '/src/archive.js';
+import {readArchive,createArchive} from '/src/archive.js';
 export const MAX_PACKAGES=400;
 const MAX_TOTAL=80*1024*1024;
 const revision=()=>crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`;
@@ -60,6 +60,6 @@ export function planImport(incoming,existing){
 export async function groupBackup(records,campName){
   if(!records.length)throw Error('Non ci sono schede da esportare.');
   const zip=new window.JSZip();zip.file('campo.json',JSON.stringify({format:'scout-campo',version:1,campName,count:records.length,exportedAt:new Date().toISOString()},null,2));
-  records.forEach((record,i)=>zip.file(`pacchetti/scout-${String(i+1).padStart(3,'0')}.zip`,record.archive));
+  for(const [i,record] of records.entries())zip.file(`pacchetti/scout-${String(i+1).padStart(3,'0')}.zip`,record.archive||await createArchive(record.data));
   return zip.generateAsync({type:'uint8array',compression:'STORE'});
 }

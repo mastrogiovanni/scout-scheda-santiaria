@@ -2,7 +2,6 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname } from 'node:path';
 import {fileURLToPath} from 'node:url';
-import api from '../server/api.js';
 const project=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const preview=process.argv.includes('--dist');
 const root=preview?resolve(project,'dist'):project;
@@ -22,13 +21,6 @@ const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; char
 http.createServer(async (req,res) => {
   try {
     const pathname = decodeURIComponent(new URL(req.url,'http://localhost').pathname);
-    if(pathname==='/api/raccolta'){
-      const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>16384){res.writeHead(413).end();return;}chunks.push(chunk);}
-      const request=new Request('http://'+req.headers.host+pathname,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
-      const response=await api(request,{ip:req.socket.remoteAddress});
-      const headers=Object.fromEntries(response.headers);headers['set-cookie']=response.headers.getSetCookie();
-      res.writeHead(response.status,headers).end(Buffer.from(await response.arrayBuffer()));return;
-    }
     if(pathname==='/capi'){res.writeHead(302,{'Location':'/capi/'}).end();return;}
     if(pathname==='/campo'){res.writeHead(302,{'Location':'/campo/'}).end();return;}
     if(pathname==='/compila'){res.writeHead(301,{'Location':'/'}).end();return;}

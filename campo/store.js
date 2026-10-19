@@ -22,15 +22,18 @@ async function transaction(stores,mode,work){
   });
 }
 export async function loadState(){
-  const result={records:[],campName:''};
+  const result={records:[],campName:'',mode:'unprepared',preparationId:null};
   await transaction(['scouts','settings'],'readonly',tx=>{
     tx.objectStore('scouts').getAll().onsuccess=e=>result.records=e.target.result;
     tx.objectStore('settings').get('campName').onsuccess=e=>result.campName=e.target.result?.value||'';
-  });return result;
+    tx.objectStore('settings').get('mode').onsuccess=e=>result.mode=e.target.result?.value||'unprepared';
+    tx.objectStore('settings').get('preparationId').onsuccess=e=>result.preparationId=e.target.result?.value||null;
+  });if(result.mode==='unprepared'&&result.records.length)result.mode='use';return result;
 }
 export async function saveScouts(changes,campName){
   await transaction(['scouts','settings'],'readwrite',(tx,abort)=>{
     const store=tx.objectStore('scouts');
+    tx.objectStore('settings').get('mode').onsuccess=e=>{if(e.target.result?.value==='preparation')abort(Error('Preparazione QRVideo attiva: termina la scansione prima di importare ZIP.'));};
     for(const {record,expectedRevision=null} of changes){
       if(!record.id)throw Error('Identificativo della scheda mancante.');
       store.get(record.id).onsuccess=e=>{
@@ -47,4 +50,18 @@ export async function eraseGroup(){await transaction(['scouts','settings'],'read
 export async function requestPersistence(){
   if(!navigator.storage?.persist)return false;
   return navigator.storage.persist();
+}
+// A generation token prevents another tab from committing an obsolete transfer.
+export async function beginPreparation(){
+  const id=crypto.randomUUID();
+  await transaction(['scouts','settings'],'readwrite',tx=>{tx.objectStore('scouts').clear();const settings=tx.objectStore('settings');settings.clear();settings.put({key:'mode',value:'preparation'});settings.put({key:'preparationId',value:id});});return id;
+}
+export async function completePreparation(records,campName,preparationId){
+  if(!records.length||records.length>400)throw Error('Numero di schede non valido.');
+  await transaction(['scouts','settings'],'readwrite',(tx,abort)=>{
+    const settings=tx.objectStore('settings');settings.get('preparationId').onsuccess=e=>{
+      if(e.target.result?.value!==preparationId){abort(Error('Preparazione cambiata in un’altra finestra. Ricomincia su questo dispositivo.'));return;}
+      const scouts=tx.objectStore('scouts');scouts.clear();records.forEach(r=>scouts.put(r));settings.put({key:'campName',value:campName});settings.put({key:'mode',value:'use'});settings.delete('preparationId');
+    };
+  });
 }

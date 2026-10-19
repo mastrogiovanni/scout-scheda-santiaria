@@ -3,6 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node scripts/serve.mjs", "build": "node scripts/build.mjs", "preview": "node scripts/serve.mjs --dist", "test": "node tests/e2e.mjs", "test:campo": "node tests/camp.mjs", "test:share": "node tests/share.mjs", "test:server": "node tests/collection-server.mjs", "test:raccolta": "node tests/collection.mjs" },
-  "devDependencies": { "playwright": "^1.56.0" }
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/serve.mjs --dist",
+    "test": "node tests/e2e.mjs",
+    "test:campo": "node tests/camp.mjs",
+    "test:share": "node tests/share.mjs",
+    "test:secure": "node tests/secure.mjs",
+    "test:qrvideo": "node tests/qrvideo-browser.mjs",
+    "test:database": "node tests/database.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
 }

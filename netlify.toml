@@ -14,5 +14,5 @@
   autoLaunch = false
 
 [functions]
-  directory = "netlify/functions"
+  directory = "netlify/static-only"
   node_bundler = "esbuild"

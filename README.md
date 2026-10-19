@@ -1,206 +1,126 @@
 # Scheda sanitaria scout
 
-Frontend responsive in italiano per il modello FSE Roma 21, anno scout 2026–2027. La compilazione, l’importazione ZIP e la generazione dei PDF avvengono nel browser. La consegna online è facoltativa: con un invito personale, “Invia al gruppo” carica lo ZIP in un archivio privato Supabase tramite Netlify Functions. Senza invio esplicito, la compilazione e il download restano locali.
+Tre frontend statici in italiano: compilazione `/`, area capi `/capi/`, archivio offline `/campo/`. Supabase fornisce Auth e PostgreSQL/RPC; non occorre un backend applicativo o una Netlify Function. Le schede online sono JSON cifrati nel browser con la chiave pubblica del capo. La chiave privata viene consegnata esclusivamente come QR in un PDF stampabile e non viene inviata a Supabase né scritta in cookie, localStorage, sessionStorage, IndexedDB o cache dell’app.
 
-## Avvio
-
-Con Node.js 18 o successivo:
+## Avvio e build
 
 ```sh
 npm start
-```
-
-Aprire http://127.0.0.1:4173. Per eseguire l’app non occorre installare pacchetti: librerie, font e modello sono inclusi in `public/`. È possibile pubblicare `index.html`, `src/`, `public/` e `campo/` su un hosting statico HTTPS, alla radice del sito. Non aprire `index.html` direttamente con `file://`, perché i moduli e le risorse richiedono HTTP.
-
-## Uso
-
-1. Leggere le indicazioni e l’informativa originali, quindi compilare le sezioni. Le risposte non sono preselezionate.
-2. Scegliere esplicitamente “No” per le voci sanitarie non pertinenti. Scegliendo “Sì” compaiono i dettagli. Il PDF compatto riassume le risposte negative in una riga e non stampa sezioni vuote.
-3. Nel riepilogo scaricare lo ZIP: contiene `scheda.json` e `scheda-compatta.pdf`.
-4. Scaricare anche il PDF originale, oppure importare lo ZIP in seguito nella stessa applicazione per ricrearlo dai dati JSON. Il PDF dentro lo ZIP non viene usato come fonte dei dati.
-5. Controllare le copie stampate e firmarle. L’originale rimane in sede; la copia compatta accompagna le attività. Prescrizioni mediche e tesserini di esenzione, ove previsti, vanno consegnati separatamente: questa applicazione non acquisisce gli allegati medici.
-
-Le risposte sono mantenute soltanto in memoria. Ricaricare o chiudere la pagina le elimina; il browser avvisa quando ci sono modifiche non esportate. Lo ZIP contiene dati sanitari in chiaro e non è cifrato. Il consenso può essere concesso o negato: entrambe le scelte vengono riportate, senza preselezione.
-
-## Stile delle interfacce
-
-Compilazione, archivio del campo e area capi condividono una palette blu uniforme, verde bosco e avorio, con accenti rossi e oro. I pannelli hanno margini interni più compatti; sul telefono i pulsanti principali mantengono almeno 44 px di altezza e i testi principali usano 16 px, le note 14 px e i campi di compilazione 17 px per evitare lo zoom automatico.
-
-Croce e giglio FSE sono serviti localmente da `public/brand/fse-emblem.png`, inclusi nella cache offline e usati anche nelle icone dell’app del campo. Fonte e attribuzione sono in `public/brand/README.md`; nessuna risorsa del sito FSE viene richiesta durante l’uso delle app.
-
-## PDF e fedeltà del modello
-
-- **Compatto:** impaginazione A4 dinamica con dati, dichiarazioni applicabili, scelta del consenso e firme. Copertina, informazioni preliminari e informativa non vengono stampate. Numero di pagine variabile in base ai contenuti; una scheda semplice occupa circa 1 pagina, una scheda con tutte le sezioni valorizzate circa 2.
-- **Originale:** il PDF fornito viene incorporato come base, conservandone tutte le 11 pagine e aggiungendo il testo negli spazi esistenti. Non è una ricostruzione grafica. Le firme rimangono vuote.
-- I testi che non entrano negli spazi dell’originale vengono richiamati con `Vedi A1`, `Vedi A2`, ecc. e riportati integralmente in pagine di allegato. Il documento può quindi superare 11 pagine. Anche le informazioni aggiuntive prive di uno spazio dedicato nel modello vengono riportate negli aggiornamenti o nell’allegato.
-- I caratteri supportati da Noto Sans, inclusi gli accenti italiani, vengono incorporati. Se un carattere non è disponibile nel font, la generazione si interrompe indicando il campo da correggere; non sostituisce né elimina caratteri senza avvisare.
-- Le parti informative sono trascritte dal PDF e mantenute come testo originale, comprese eventuali ripetizioni presenti nella fonte.
-
-## Formato dello ZIP
-
-`scheda.json` contiene `format: "scout-sanitaria"`, `version: 1`, identificativo del modello, SHA-256 del modello di riferimento, data di esportazione e oggetto `data` con chiavi definite in `src/schema.js`. I dettagli delle sezioni non attive non vengono esportati. L’importazione verifica versione, modello, struttura, tipi, lunghezze, risposte e campi obbligatori prima di sostituire lo stato attuale. Se esistono dati in pagina viene richiesta conferma per sostituirli. Il riferimento SHA-256 identifica il modello compatibile; non autentica il contenuto dello ZIP né costituisce una firma digitale.
-
-Il limite di importazione è 12 MB compressi, 10 voci, 16 MB per voce e 256 KB per il JSON. Un archivio non valido non sostituisce la scheda aperta. Conservare questa versione dell’app e il relativo modello per mantenere la compatibilità degli archivi.
-
-## Struttura
-
-- `src/schema.js`: campi, condizioni di visibilità, validazione, normalizzazione delle sezioni attive.
-- `src/app.js` e `src/style.css`: interfaccia e riepilogo.
-- `src/pdf.js`: impaginazione compatta, coordinate del modello e gestione dei testi lunghi.
-- `src/archive.js`: esportazione e importazione ZIP.
-- `src/content.json`: informazioni e dichiarazioni estratte dal modello.
-- `scripts/serve.mjs`: anteprima locale del frontend e dell’API di raccolta (disabilitata senza configurazione).
-
-## Verifiche
-
-Con il server avviato, installare le sole dipendenze di sviluppo e il browser di test:
-
-```sh
-npm install
-npx playwright install chromium
-npm test
-```
-
-I test usano esclusivamente dati fittizi e verificano compilazione nell’interfaccia, campi condizionali, PDF compatto e originale, importazione/esportazione senza alterazioni, consenso negato, rappresentante, tutte le modalità di somministrazione, testi lunghi, scarto dei dettagli non pertinenti, archivi non validi, assenza di richieste esterne e larghezza mobile a 390 px. Generano PDF e screenshot sotto `tmp/pdfs/`, esclusa dal controllo versione.
-
-Per verificare il testo e la conservazione delle pagine originali, dopo i test browser:
-
-```sh
-python3 -m pip install pypdf
-python3 tests/verify_pdfs.py
-```
-
-Le dipendenze distribuite con il frontend sono elencate in `public/vendor/THIRD_PARTY_NOTICES.md`.
-
-## Al campo: archivio del gruppo sul telefono
-
-Aprire **http://127.0.0.1:4173/campo/** per l’anteprima locale. L’app del campo è separata dal modulo di compilazione e usa gli stessi pacchetti ZIP. Permette di:
-
-- caricare più ZIP insieme o un backup dell’intero gruppo;
-- cercare per nome, cognome, codice fiscale, codice socio o unità, selezionare uno scout e filtrare per unità, allergie, terapie/farmaci o dieta;
-- leggere le informazioni in evidenza e la scheda completa, con numeri telefonici chiamabili;
-- esportare PDF compatto, originale e pacchetto individuale anche offline;
-- salvare e ripristinare un backup ZIP di tutte le schede e del nome del campo;
-- rimuovere una singola scheda o svuotare esplicitamente l’archivio del dispositivo.
-
-I dati e gli ZIP originali sono conservati in **IndexedDB**, dopo il completamento della transazione di salvataggio. Il salvataggio sopravvive alla chiusura della pagina e al riavvio del browser. I file dell’app, il modello PDF, i font e le librerie sono precaricati dal **service worker**: lo stato “Pronta offline” appare dopo averne verificato la disponibilità in cache. Nessun dato viene inviato al server. L’app chiede al browser la memoria persistente, ove disponibile, e comunica se la richiesta viene accordata. La concessione dipende dal browser; la cancellazione manuale dei dati del sito elimina comunque le schede.
-
-### Installazione e prova prima del campo
-
-1. Pubblicare l’intero frontend su un hosting statico **HTTPS**, alla radice del dominio. Includere `index.html`, `campo/`, `src/` e `public/`. Il server deve servire `campo/sw.js` come JavaScript, `campo/manifest.webmanifest` come manifest JSON e `campo/` come `campo/index.html`. Lo script `npm start` è un’anteprima locale; non fornisce un indirizzo pubblico HTTPS.
-2. Aprire l’indirizzo HTTPS `/campo/` sul telefono, inizialmente con connessione. Su iPhone usare Safari → Condividi → Aggiungi alla schermata Home. Su Android usare il comando Installa app / Aggiungi a schermata Home del browser oppure il pulsante di installazione, quando disponibile.
-3. **Aprire l’app dall’icona installata e caricare i pacchetti lì.** Un’app installata può avere una memoria separata dalla scheda del browser, specialmente su iPhone: non presumere che i dati caricati prima dell’installazione siano già nella nuova app.
-4. Attendere **Pronta offline**, verificare il numero degli scout e scaricare un backup del gruppo. Attivare la modalità aereo, chiudere e riaprire l’app dall’icona, quindi cercare uno scout e aprire la scheda.
-
-`127.0.0.1` si riferisce al dispositivo su cui si apre il link: l’indirizzo locale del computer non apre l’app sul telefono. I service worker richiedono HTTPS; localhost è l’eccezione per lo sviluppo. Riferimenti: [MDN: Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API), [web.dev: installazione delle PWA](https://web.dev/learn/pwa/installation), [MDN: memoria persistente](https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist).
-
-L’archivio resta nel browser/app, sul dispositivo e sul dominio usati per importarlo. Non ci sono sincronizzazione o copia automatica su altri telefoni. La navigazione privata non è adatta alla conservazione dei dati. Un backup permette di trasferire il gruppo a un altro telefono o ripristinarlo dopo la cancellazione della memoria.
-
-### Importazioni e aggiornamenti
-
-Il codice fiscale identifica ogni scout; due nomi uguali con codici fiscali diversi restano due schede distinte. Pacchetti identici vengono saltati. Se un pacchetto ha lo stesso codice fiscale ma dati diversi, l’app mostra le differenze e permette di scegliere esplicitamente la sostituzione; nessun aggiornamento è selezionato automaticamente. Non sceglie in autonomia la scheda “più recente”. Un conflitto arrivato da un’altra finestra durante l’importazione annulla la transazione, evitando sostituzioni involontarie. Gli archivi non validi vengono elencati prima del salvataggio, mentre quelli validi possono essere importati dopo la revisione.
-
-Limiti: 400 schede nel gruppo, 75 MB complessivi di pacchetti salvati; 400 pacchetti e 80 MB per importazione. Restano validi i limiti del pacchetto individuale descritti sopra. Un backup contiene `campo.json` (formato `scout-campo`, versione 1) e i pacchetti individuali in `pacchetti/`. L’app non acquisisce né verifica firme o allegati medici; riporta le dichiarazioni contenute nel JSON.
-
-### Verifica dell’app del campo
-
-Con il server avviato e Playwright installato:
-
-```sh
-npm run test:campo
-```
-
-La suite verifica importazione multipla, nomi uguali, scarto di file non validi, aggiornamenti espliciti, ricerca e filtri, contatti chiamabili, testo importato trattato come testo, transazioni annullate senza scritture parziali e conflitti fra finestre. Chiude completamente Chromium, lo riapre con lo stesso profilo e rete disabilitata **prima della navigazione**, quindi verifica consultazione, esportazione dei PDF, backup, cancellazione e ripristino offline. Controlla anche il layout a 390 px. I test sono eseguiti in Chromium: la prova sul telefono di destinazione resta parte della preparazione prima del campo.
-
-Per pubblicare aggiornamenti, incrementare `VERSION` in `campo/sw.js` ogni volta che cambiano i file precache. L’app propone il pulsante di aggiornamento e lo applica fuori dalle operazioni di importazione/esportazione; i dati IndexedDB restano separati dalla cache dell’app.
-
-## Pubblicazione su Netlify
-
-Entrambe le app sono predisposte per **un solo progetto Netlify**: il compilatore su `/` (con alias `/compila`) e l’archivio offline su `/campo/`. Il dominio HTTPS del progetto rimane il punto di accesso da usare sui telefoni.
-
-### Build e anteprima
-
-```sh
+# http://127.0.0.1:4173
 npm run build
 npm run preview
 ```
 
-La build genera esclusivamente `dist/`, con file frontend, modello PDF vuoto, font, librerie, manifest, pagina 404 e regole Netlify. Esclude test, esempi compilati, documenti di lavoro, backup, credenziali e file Git. Non necessita di dipendenze npm per la compilazione: usa soltanto i moduli inclusi in Node.js.
+Node.js 18+ per sviluppo/build; Node.js 22 su Netlify. Librerie, font, lettore e generatore QR sono inclusi in `public/`: nessun CDN viene contattato durante l’uso. Pubblicare `dist/` alla radice di un dominio HTTPS. Non usare `file://`. HTTPS è necessario per camera, Web Crypto e service worker; localhost è ammesso per sviluppo.
 
-Il service worker riceve automaticamente una versione derivata dal contenuto dei file pubblicati. Un aggiornamento del sito produce una nuova cache; l’app propone l’aggiornamento conservando IndexedDB. Per i deploy con `npm run build` non occorre modificare manualmente `VERSION`. Il dominio di produzione va mantenuto stabile: un indirizzo di anteprima diverso ha una memoria del browser separata.
+## Configurazione Supabase
 
-### Collegamento del repository
+1. Applicare `supabase/migrations/202610190001_zero_trust.sql` al progetto Supabase. La migrazione è autonoma e crea soltanto tabelle, RPC e policy con prefisso `scout_secure_`; funziona anche senza le vecchie migrazioni del 18 ottobre.
+2. In Auth abilitare l’accesso email/password e la registrazione. Configurare Site URL e redirect consentiti per il dominio pubblicato; la conferma email riporta al sito, poi il capo accede con email e password. Verificare la consegna delle email del progetto.
+3. Per `npm start`, impostare URL e chiave **pubblicabile/anon** in `src/supabase-config.js`. Per Netlify/build, usare `PUBLIC_SUPABASE_URL` e `PUBLIC_SUPABASE_PUBLISHABLE_KEY` come in `.env.example`: la build genera la configurazione pubblica in `dist/` e aggiorna la CSP per quel progetto.
+4. Non usare chiavi `secret` o `service_role`. La build rifiuta quelle chiavi nelle variabili pubbliche. Non serve un segreto server.
+5. Pubblicare e provare il percorso con dati fittizi. La configurazione del repository lascia intenzionalmente vuota la chiave pubblicabile.
 
-Dopo che i file del progetto sono stati committati e inviati al repository, in Netlify selezionare **Add new project → Import an existing project**, scegliere il provider Git e il repository del progetto. `netlify.toml` imposta:
+Auth identifica il capo; le RPC e RLS autorizzano l’accesso soltanto ai suoi gruppi e alle sue consegne. I genitori non creano account: possono leggere il destinatario e inviare una consegna soltanto conoscendo il link del gruppo. I ruoli anonimi non leggono tabelle o schede; le scritture avvengono attraverso RPC con privilegi espliciti. La chiave pubblica del capo non è modificabile dopo il censimento.
 
-- Base directory: radice del repository.
-- Build command: `npm run build`.
-- Publish directory: `dist`.
-- Node.js: versione 22.
-- Dipendenze di sviluppo escluse dalla build; compilazione e archivio offline funzionano senza segreti. Per la raccolta online sono necessarie le Netlify Functions e le variabili server descritte sotto.
+La sessione Auth (token di accesso e rinnovo, senza chiave crittografica privata) è conservata in sessionStorage per la scheda del browser. Logout la elimina; l’account permette di gestire i gruppi ma non sostituisce il QR privato.
 
-Il file di configurazione è pronto nel progetto locale; diventa disponibile a Netlify soltanto dopo il push. Per un progetto già esistente, collegare lo stesso repository e applicare le medesime impostazioni, mantenendone il dominio.
+### Passaggio dalla raccolta precedente
 
-### Pubblicazione manuale
+Le tabelle `scout_*` e il bucket `scout-packages` della vecchia versione restano intatti. Non si copiano automaticamente schede in chiaro nel nuovo archivio e non si cancellano dati esistenti. Il server locale non espone più `/api/raccolta`; Netlify usa la cartella vuota `netlify/static-only`, quindi non distribuisce le vecchie Functions. `server/`, `netlify/functions/` e i vecchi test `collection*` rimangono esclusivamente come sorgenti storiche.
 
-In alternativa, il file `output/scout-sanitaria-netlify.zip` contiene il **sito compilato**: caricarlo con la funzione di deploy manuale di Netlify, oppure trascinare la cartella `dist/`. Le regole `_headers` e `_redirects` sono già incluse e valgono anche per un deploy senza repository. Non caricare la cartella dell’intero progetto o gli ZIP con le schede delle famiglie.
+Prima di ritirare un’installazione precedente, gestire la conservazione e la cancellazione delle vecchie raccolte: il nuovo deploy statico non esegue più il vecchio job pianificato. Le vecchie variabili segrete Netlify non sono usate dalla nuova applicazione. I nuovi dati cifrati non hanno una cancellazione automatica per data.
 
-### Regole e verifiche
+## Area capi
 
-- Header di sicurezza, Content Security Policy con risorse locali e blocco dell’invio dei moduli.
-- Service worker servito come JavaScript con ambito `/campo/`, manifest con tipo corretto e risorse HTTP da rivalidare, senza impedire la cache offline esplicita.
-- Nessuna riscrittura globale verso il compilatore: URL inesistenti restituiscono 404, evitando che un asset mancante venga interpretato come HTML.
+1. Creare un account e confermare l’email, se richiesto dal progetto Supabase.
+2. Inserire il nome e scegliere **Genera e scarica il PDF privato**. La coppia ECDH P-256 nasce con Web Crypto nel browser. Il PDF A4 contiene il QR privato e l’impronta della pubblica. Verificarlo, stamparlo, custodirlo e confermare il censimento: sul backend vengono registrati nome, pubblica e impronta.
+3. Il PDF scaricato è la copia consegnata all’utente. L’app non ne mantiene una copia persistente; occorre gestire anche il file nei Download e la stampa. Prima del completamento del censimento si può generare un nuovo PDF: sostituisce la coppia appena creata. Non esiste recupero della privata attraverso password, account o backend.
+4. Creare un gruppo indicando unità e anno scout, per esempio **Esploratori · 2026-2027**. Il link contiene un token casuale da 256 bit e l’impronta della chiave pubblica, entrambi nel frammento `#`, che non viene inviato all’hosting. Nel database si conserva soltanto SHA-256 del token.
+5. Copiare il link e incollarlo su WhatsApp o altro canale. È condiviso da tutte le famiglie del gruppo. Il link completo resta in memoria fino alla chiusura della pagina; dopo è possibile generarne uno nuovo, revocando il precedente. È anche possibile chiudere e riaprire le consegne.
+6. Aprire il gruppo per scaricare tutte le buste cifrate (pagine da 20 elementi), oppure esportarle in un JSON cifrato. Il database conserva ciascuna scheda come documento JSON `envelope` associato al gruppo; non viene caricato il PDF o lo ZIP in Storage.
+7. Scegliere **Scansiona QR privato** e mostrare il foglio alla camera del computer. Il lettore funziona anche nei browser privi di BarcodeDetector. Una chiave di un altro capo viene rifiutata. La chiave importata non è esportabile e viene rilasciata dopo la decifratura. I risultati rimangono soltanto in memoria della pagina. **Dimentica schede decifrate**, cambio gruppo e logout li eliminano.
+8. Se una consegna è danneggiata o non compatibile, viene segnalata separatamente: le schede valide restano utilizzabili. In presenza di più consegne della stessa persona, scegliere esplicitamente una sola versione confrontando i dati. La preparazione rifiuta duplicati dello stesso codice fiscale.
+9. Scegliere **Mostra QRVideo**. Aprire `/campo/` sul telefono, avviare la preparazione e inquadrare lo schermo. Avviare la ripetizione; velocità regolabile da 1 a 5 QR/s, pausa e navigazione manuale fra frammenti.
 
-Le suite browser accettano `TEST_BASE_URL`, per verificare sia la build locale sia il dominio Netlify definitivo:
+Limiti: 100 gruppi per capo, 400 consegne per gruppo, 256 KB di JSON per scheda. Non vengono acquisiti documenti firmati, prescrizioni o allegati medici. Una nuova consegna corregge la precedente senza sovrascriverla; il capo sceglie quale versione portare al campo.
 
-```sh
-TEST_BASE_URL=https://nome-progetto.netlify.app npm test
-TEST_BASE_URL=https://nome-progetto.netlify.app npm run test:campo
+## Compilazione e consegna
+
+Il genitore apre il link, controlla gruppo, anno e capo destinatario, compila o importa uno ZIP precedente. L’impronta nel link viene confrontata con la chiave pubblica restituita da Supabase prima di consentire l’invio.
+
+Nel riepilogo sceglie esplicitamente l’invio e preme **Invia scheda cifrata**. Il browser valida i dati e cifra soltanto il JSON con una nuova chiave effimera e nuovi salt/IV. Il backend riceve una busta JSON opaca, associata al gruppo, senza nomi, codici fiscali o informazioni sanitarie in colonne separate. L’identificativo di consegna e il ciphertext vengono riutilizzati se un errore di rete richiede un nuovo tentativo: la RPC restituisce la stessa ricevuta e non crea duplicati. Attendere la ricevuta prima di considerare completata la consegna.
+
+Restano disponibili ZIP locale, condivisione di file dal dispositivo e PDF originale. Questi file esportati contengono dati sanitari in chiaro; non vengono caricati durante la consegna cifrata. Le risposte del modulo rimangono in memoria fino alla chiusura/ricaricamento. Non viene salvata una bozza automatica.
+
+### Cifratura
+
+`src/crypto.js` usa Web Crypto: ECDH P-256, chiave effimera per consegna, HKDF-SHA-256 con salt casuale di 32 byte e chiave AES-256-GCM con IV casuale di 12 byte e tag da 128 bit. L’AAD vincola formato/versione, gruppo, impronta del destinatario e UUID della consegna. Cambiare questi valori o il ciphertext fa fallire la decifratura. Il JSON privato nel QR usa il formato versionato `SCOUT-KEY-1:`; il backend accetta soltanto i campi previsti della busta e della pubblica.
+
+Il backend non dispone del materiale per decifrare le schede; resta necessario fidarsi del codice frontend distribuito e del dispositivo che lo esegue. La cifratura non autentica l’identità del compilatore: chi possiede il link può inviare una scheda. La perdita del QR privato rende irrecuperabili le consegne già cifrate per quella coppia.
+
+## Al campo: preparazione e uso offline
+
+Installare l’app `/campo/` sul telefono e aprirla dalla sua icona **prima** di caricare i dati. Su iPhone usare Safari → Condividi → Aggiungi alla schermata Home; su Android il menu Installa app. L’app installata può avere memoria separata dalla normale scheda del browser.
+
+- **Prepara con QRVideo** chiede conferma della sostituzione e cancella immediatamente tutte le schede e impostazioni precedenti da IndexedDB. Anche un ricaricamento successivo mostra la preparazione, senza riesumare il vecchio archivio.
+- L’app verifica che codice, librerie, modello PDF, font, immagini e contenuti siano in cache prima di attivare la scansione. Se la cache è incompleta, occorre la connessione; **Riattiva videocamera** riprende dopo averla preparata. La ricerca di aggiornamenti applicativi avviene in preparazione. Un aggiornamento disponibile si applica con **Aggiorna app**, conservando lo stato di preparazione.
+- I frammenti incompleti sono solo in memoria: camera fermata o telefono temporaneamente in background non eliminano quelli ricevuti; ricaricare la pagina richiede ricominciare la scansione. Il browser libera la camera quando la pagina passa in background; il pulsante di riattivazione riprende il lavoro.
+- La barra colora le posizioni dei frammenti ricevuti, con contatore e percentuale. Non occorre riceverli in ordine. Quelli mancanti arrivano ai giri successivi.
+- Una volta completo, il payload viene verificato, decompresso con limite di dimensione e ogni scheda validata. Solo allora un’unica transazione IndexedDB salva il gruppo e passa alla **modalità uso**. Un errore non salva un archivio parziale. Un identificativo di preparazione impedisce a un’altra finestra di salvare un trasferimento ormai superato.
+- In uso si cercano e filtrano gli scout, si leggono schede e recapiti chiamabili, si esportano PDF originali/compatti, ZIP individuali e backup. I PDF e gli ZIP delle schede ricevute via QR vengono generati sul dispositivo quando richiesti.
+
+L’app in uso legge le proprie risorse dalla cache del service worker e i dati da IndexedDB. Non contatta Supabase. È utilizzabile in modalità aereo anche dopo chiusura e riapertura. Prima di partire attendere **Pronta offline** e fare questa prova sul telefono effettivo. Richiedere memoria persistente nelle impostazioni quando disponibile. La cancellazione manuale dei dati del sito o la rimozione dell’app può eliminare l’archivio.
+
+L’importazione ZIP e il backup preesistenti restano disponibili per compatibilità; l’importazione ZIP è sospesa durante la preparazione QRVideo. Gli ZIP contengono dati in chiaro. Limiti: 400 scout, 75 MB nell’archivio, 80 MB per importazione. Gli aggiornamenti della stessa persona richiedono scelta esplicita; le scritture sono atomiche e controllano i conflitti fra finestre.
+
+### Protocollo QRVideo v1
+
+Payload: un unico oggetto JSON con `format: "scout-qrvideo"`, `version: 1`, `campName` e `sheets`, array di tutte le schede selezionate nel formato già validato dall’app. Viene compresso con gzip quando disponibile e conveniente, poi suddiviso in **400 byte binari per frammento**, codificati in base64url nel QR. Il fallback senza compressione resta interoperabile. Limiti: 2 MiB trasmessi e 8 MiB dopo decompressione.
+
+Ogni QR è una stringa ASCII:
+
+```text
+SQV1|payloadSHA256|codec|totalBytes|400|index|segmentBytes|segmentSHA256Prefix|base64url
 ```
 
-Le prove usano soltanto dati fittizi nel browser; non inviano le risposte a Netlify. Sono state eseguite sulla build pubblicabile con gli header di produzione, includendo il riavvio del browser senza rete.
+- Indice a partire da zero; `segmentBytes` è la lunghezza effettiva, anche nell’ultimo frammento.
+- `payloadSHA256` è SHA-256 completo dei byte trasmessi in base64url, e identifica il trasferimento.
+- `codec`: `g` per gzip, `j` per JSON UTF-8 senza compressione.
+- `segmentSHA256Prefix`: primi 16 caratteri base64url di SHA-256 del frammento (96 bit), verificati prima di accettarlo.
+- Il ricevitore si aggancia al primo trasferimento valido, ignora duplicati e segnala trasferimenti differenti. Valida indici, lunghezze, checksum dei frammenti e SHA-256 completo prima di decodificare.
 
-Riferimenti: [configurazione Netlify](https://docs.netlify.com/build/configure-builds/file-based-configuration/), [header personalizzati](https://docs.netlify.com/manage/routing/headers/), [deploy manuali](https://docs.netlify.com/deploy/create-deploys/).
+Un frame pieno occupa circa **650 caratteri ASCII**, con correzione QR di livello M e margine bianco di quattro moduli. Il valore iniziale di **3 QR/s** espone ogni QR per circa **333 ms**, con velocità utile teorica di **1,2 KB/s** prima delle scansioni perse. Un payload già compresso da 60 KB richiede circa 150 QR, quindi 50 secondi per giro; 150 KB circa 125 secondi. Sono stime: riflessi, messa a fuoco, distanza e dispositivo possono richiedere più giri o 1–2 QR/s. Ingrandire il QR sul computer e mantenere tutto il margine nell’inquadratura.
 
-## Condivisione dello ZIP dal cellulare
+QRVideo trasferisce **schede decifrate**: la verifica SHA-256 rileva errori e frammenti mescolati, non autentica il trasmittente e non cifra il canale ottico. Inquadrare lo schermo solo con dispositivi autorizzati.
 
-Nel riepilogo del compilatore, il pacchetto viene preparato sul dispositivo prima di abilitare il pulsante. Se il browser accetta la condivisione di quel file ZIP, l’azione principale è **Condividi ZIP**: apre il menu del sistema, dove l’utente sceglie WhatsApp, email o un’altra app disponibile. Il file condiviso contiene lo stesso JSON e PDF compatto del download; non viene condiviso un link alla pagina e non viene caricato su un server dell’applicazione. Resta disponibile anche **Scarica ZIP**.
+## PDF e ZIP
 
-Il menu si apre direttamente dal tocco su un file già pronto, per conservare l’attivazione dell’utente richiesta sui telefoni. Modificare le risposte invalida il file preparato e genera un nuovo pacchetto. Se l’utente annulla il menu, non viene avviato un download automatico: può riprovare o scaricare il file esplicitamente.
+Il compatto A4 è dinamico: riporta informazioni utili, dichiarazioni applicabili, consenso e firme, senza pagine informative o sezioni vuote. L’originale conserva le 11 pagine del modello FSE Roma 21 e compila gli spazi esistenti. Testi eccedenti vengono riportati in allegato con richiami; le firme restano vuote. Font Noto Sans incorporati, caratteri non supportati segnalati.
 
-La disponibilità dipende dal browser, dal sistema e dal tipo di file: alcuni browser condividono testi o PDF ma rifiutano gli ZIP. In quel caso compare **Scarica ZIP**, con l’indicazione di allegare il file dall’app desiderata (per esempio come documento su WhatsApp). La verifica usa `navigator.canShare({files:[file]})` sullo ZIP reale. Su Android, Chromium può restituire `true` e poi rifiutare gli ZIP nel servizio nativo: per questi browser l’app propone direttamente il download, con istruzioni per aprire File/Download → selezionare lo ZIP → Condividi → WhatsApp, oppure allegarlo dalla chat come Documento. Il controllo riconosce Android anche tramite Client Hints nella modalità desktop. Non forza la condivisione cambiando estensione o tipo del file. Un errore nativo su altri browser mostra il codice e le stesse istruzioni, senza avviare download automatici. Riferimento del limite Android: [servizio Web Share di Chromium](https://github.com/chromium/chromium/blob/main/components/browser_ui/webshare/android/java/src/org/chromium/components/browser_ui/webshare/ShareServiceImpl.java). Riferimento: [MDN: condivisione di file](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share).
+Lo ZIP individuale contiene `scheda.json` (`format: "scout-sanitaria"`, versione 1, modello, SHA-256 del modello, data di esportazione, `data`) e `scheda-compatta.pdf`. Il JSON è l’unica fonte per l’importazione; campi sconosciuti, tipi, risposte, modello e dimensioni vengono verificati prima di sostituire lo stato. Limiti: 12 MB compressi, 10 voci, 16 MB per voce e 256 KB per il JSON. Il backup del gruppo contiene `campo.json` e i pacchetti in `pacchetti/`.
 
-`npm run test:share` verifica la condivisione con una preparazione lenta, l’attivazione al momento del tocco, nome e contenuto del file, annullamento, errore di autorizzazione, aggiornamento delle risposte e download alternativo. Verifica anche Android/Chromium con un falso positivo di `canShare`, inclusa la modalità desktop. Il menu nativo è simulato nei test: nessun file viene inviato ad app o destinatari reali. La presenza di WhatsApp nel menu va provata sul telefono usato.
+La condivisione usa il menu nativo solo se il browser supporta realmente lo ZIP; su Android/Chromium viene proposto il download con istruzioni per allegare il documento da File/Download o WhatsApp. L’app non invia messaggi alle famiglie.
 
+## Verifiche
 
-## Consegna online e area capi (Supabase)
+```sh
+npm install
+npx playwright install chromium
+npm start
+# In un secondo terminale:
+npm test
+npm run test:campo
+npm run test:share
+npm run test:secure
+npm run test:qrvideo
+npm run test:database
+```
 
-La terza pagina `/capi/` permette ai capi abilitati di creare raccolte con una scadenza e una data di cancellazione online, distribuire inviti personali, leggere le consegne e preparare un backup compatibile con l’app `/campo/`. Il collegamento va copiato e inviato personalmente: l’app non invia messaggi WhatsApp alle famiglie. Il link completo è mostrato una sola volta; nel database viene conservata solo la sua impronta SHA-256. Può essere revocato. Un nuovo invito permette di consegnare una correzione senza sovrascrivere la precedente; il capo deve selezionare esplicitamente una sola versione per persona prima di creare il backup.
+Le suite browser accettano `TEST_BASE_URL` per provare una build o un dominio diverso. `test:secure` usa solo Node/Web Crypto. `test:database` richiede `initdb`, `pg_ctl` e `psql` nel PATH: crea e arresta un PostgreSQL temporaneo con socket locale, simula soltanto le funzioni minime di Supabase Auth e verifica la migrazione, RLS fra capi, privilegi anonimi, invarianti e idempotenza. Non si collega a Supabase reale.
 
-Le famiglie compilano o importano un vecchio ZIP e scelgono esplicitamente di inviarlo al gruppo indicato. Il browser carica lo ZIP direttamente su Supabase usando un URL firmato per un singolo oggetto, senza cambiarne estensione o tipo. Il server controlla dimensione, indice ZIP, decompressione limitata, CRC, JSON, modello e risposte, e verifica l’impronta del file prima di registrare la consegna. Un upload interrotto non produce ricevuta; i tentativi ripetuti restituiscono la stessa ricevuta dopo il salvataggio. Il limite è 12 MB, due file (`scheda.json` e `scheda-compatta.pdf`), 256 KB per il JSON e 16 MB per il PDF estratto. Non vengono acquisiti documenti firmati o prescrizioni.
+`test:qrvideo` usa Auth/RPC simulate e QR reali generati e decodificati attraverso un MediaStream sintetico: censimento e PDF, chiave mai inviata/persistita, link, consegna cifrata, retry con stesso UUID, decifratura da camera, ricezione fuori ordine, svuotamento precedente, riapertura offline ed esportazione da dati QR. `test:campo` verifica anche il riavvio completo del browser con rete disabilitata prima della navigazione. I test e gli screenshot usano dati fittizi in `tmp/`, esclusa da Git. La lettura delle camere fisiche su Safari/iPhone e Android va provata sui dispositivi di destinazione.
 
-L’area capi usa Supabase Auth con link email e PKCE, cookie HttpOnly/Secure/SameSite, verifica dell’account e dell’abilitazione a ogni richiesta e controllo dell’origine. Il link va aperto nello stesso browser. I capi autorizzati appartengono allo stesso gruppo e accedono a tutte le raccolte; il ruolo amministratore può abilitare o disabilitare altri capi. La disabilitazione non cancella le copie già scaricate. Nessun contenuto sanitario viene inserito nelle notifiche email. Non vengono registrati payload, token, indirizzi IP in chiaro o ZIP nei log applicativi.
+La build verifica che ogni risorsa offline esista e deriva la versione della cache dall’hash dei file pubblicati. Include esclusivamente frontend e asset pubblici; non distribuisce server, test, file di lavoro, chiavi segrete o dati compilati. Le licenze sono in `public/vendor/THIRD_PARTY_NOTICES.md`.
 
-### Configurazione del progetto esistente
-
-1. Nel progetto Supabase **Scout**, applicare una sola volta, nell’ordine, `supabase/migrations/202610180001_collection.sql` e `supabase/migrations/202610180002_restrict_bucket.sql`. La migrazione crea esclusivamente tabelle e funzioni con prefisso `scout_` e il bucket privato `scout-packages`. RLS è abilitata e i ruoli `anon` e `authenticated` non hanno accesso diretto alle tabelle o alle funzioni. Non vengono abilitate policy pubbliche per Storage. Una policy restrittiva vieta l’accesso diretto al bucket anche in presenza di policy permissive aggiunte da altre applicazioni; gli URL firmati restano disponibili tramite l’API autorizzata.
-2. Abilitare il primo amministratore con una query nel SQL Editor: `insert into public.scout_leaders(email,role) values ('indirizzo-del-responsabile@example.org','admin');`. Usare l’indirizzo concordato, in minuscolo.
-3. In Authentication → URL Configuration, aggiungere esattamente `https://scout-sanitaria.netlify.app/capi/` agli URL di reindirizzamento consentiti, conservando eventuali impostazioni di altre applicazioni. Verificare il provider email e la consegna tramite SMTP prima di abilitare altri capi: il servizio email predefinito di Supabase può limitare i destinatari agli account del team. Non occorre modificare il modello del link email standard per il flusso PKCE.
-4. In Netlify, configurare per il solo contesto **Production**, `SUPABASE_URL`, `SUPABASE_SECRET_KEY` e `SITE_URL` (vedere `.env.example`). La chiave segreta va copiata dalle API Keys del progetto e non deve entrare in Git, nel frontend, nelle variabili pubbliche o nei log. Marcare la chiave con **Contains secret values**. Limitare lo scope a Functions quando il piano lo permette; nei piani che consentono soltanto All scopes, il segreto sarà disponibile anche alla build e questo ambito deve essere approvato dal responsabile. Il nostro script di build non legge queste variabili e non le incorpora nei file statici. Non abilitarle per Deploy Previews o branch deploys.
-5. Pubblicare la build e le funzioni. Aprire `/capi/`, richiedere il link con l’indirizzo abilitato e verificare l’accesso. Creare una raccolta di prova e provare l’intero percorso con dati fittizi. Non usare schede reali per verificare la configurazione.
-
-Per lo sviluppo, impostare le variabili nel processo che avvia `npm start`; il server locale non legge automaticamente `.env`. Usare una configurazione e un progetto di test dedicati per eventuali prove reali. La CSP autorizza connessioni soltanto all’origine del sito e al progetto Supabase `wbzwxutrholchzodzwuy`: un cambio di progetto richiede l’aggiornamento di `deploy/_headers`.
-
-### Preparazione del campo e conservazione
-
-Il capo seleziona i pacchetti e sceglie **Prepara per il campo**, poi carica il backup nell’app offline sul telefono. Prima di partire verifica “Pronta offline” e riapre l’app in modalità aereo. Limiti: 400 inviti per raccolta e 75 MB per backup; selezioni più grandi vanno suddivise. Il download verifica anche l’impronta dei singoli pacchetti. Eventuali duplicati della stessa persona richiedono di scegliere una versione prima dell’esportazione.
-
-La funzione pianificata `pulisci-raccolte` cancella ogni giorno alle 03:00 UTC gli oggetti Storage delle raccolte scadute, inclusi upload incompleti, prima di rimuoverne le righe. La data viene scelta esplicitamente dal capo quando crea la raccolta. Le API bloccano l’accesso dopo la scadenza anche prima dell’esecuzione della pulizia. Le copie locali, gli ZIP già esportati e gli eventuali backup del fornitore restano distinti. La data di cancellazione deve quindi essere scelta secondo le esigenze dell’associazione.
-
-### Verifiche della raccolta
-
-`npm run test:server` verifica l’API con risposte Supabase simulate, autenticazione, autorizzazioni, origine, PKCE, cookie, URL firmati, ZIP danneggiati, impronta errata, mancata ricevuta in caso di errore, idempotenza e cancellazione degli oggetti prima delle righe.
-
-Con il server aggiornato avviato, `TEST_BASE_URL=http://127.0.0.1:4183 npm run test:raccolta` verifica il percorso mobile completo con API/Storage simulati: invito, scelta esplicita, caricamento, errore e nuovo tentativo, ricevuta, area capi, inviti personali, controllo consegne, backup, importazione nell’app del campo e riapertura offline. Non invia email, messaggi o schede reali. Il file `tests/collection-database.sql`, da eseguire dopo la migrazione, verifica sul database reale RLS, privilegi, bucket privato, idempotenza, inviti revocati/chiusi, limite di 400 inviti e rate limiting: tutti i record di prova sono racchiusi in una transazione annullata. Le prove non sostituiscono la verifica dell’invio effettivo e della consegna delle email sul progetto configurato.
-
-Riferimenti: [Supabase: bucket privati](https://supabase.com/docs/guides/storage/buckets/fundamentals), [autenticazione email](https://supabase.com/docs/guides/auth/auth-email-passwordless), [chiavi API](https://supabase.com/docs/guides/getting-started/api-keys).
+Riferimenti tecnici: [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Web Crypto: deriveKey e HKDF](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/deriveKey), [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API).

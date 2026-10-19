@@ -1,17 +1,19 @@
+import {setupPreparation} from './preparation.js';
 import {fullName,dateIT,fieldMap} from '/src/schema.js';
 import {dataBlocks,compactPdf,originalPdf} from '/src/pdf.js';
-import {download,filename} from '/src/archive.js';
-import {loadState,saveScouts,saveCampName,removeScout,eraseGroup,requestPersistence} from './store.js';
+import {download,filename,createArchive} from '/src/archive.js';
+import {loadState,saveScouts,saveCampName,removeScout,eraseGroup,requestPersistence,beginPreparation,completePreparation} from './store.js';
 import {preparePackages,planImport,groupBackup,MAX_PACKAGES} from './packages.js';
 
 const $=s=>document.querySelector(s);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fold=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('it');
+let preparation=null,mode='unprepared';
 let records=[],campName='',selected=null,filter='all',query='',unit='',busy=false,staged=null,offlineReady=false,storageAvailable=false,deferredInstall,refreshing=false;
 const healthFilters={all:()=>true,allergies:d=>d.allergiesPresent==='yes',therapy:d=>d.currentPresent==='yes'||d.medicinesPresent==='yes'||d.administration==='yes',diet:d=>d.dietPresent==='yes'};
 const filterNames={all:'Tutti gli scout',allergies:'Con allergie',therapy:'Terapie / farmaci',diet:'Diete particolari'};
 function notice(message,error=false){$('#camp-notice').textContent=message;$('#camp-notice').className=message?'notice '+(error?'error':'success'):'';}
-function setBusy(value){busy=value;document.body.classList.toggle('busy',value);$('#import-packages').disabled=value||!storageAvailable;$('#backup-group').disabled=value||!records.length;$('#confirm-import').disabled=value||!staged||!staged.additions.length&&!staged.conflicts.length;$('#cancel-import').disabled=value;$('#erase-group').disabled=value;$('#save-name').disabled=value;}
+function setBusy(value){busy=value;document.body.classList.toggle('busy',value);$('#import-packages').disabled=value||!storageAvailable||mode==='preparation';$('#prepare-qrvideo').disabled=value||!storageAvailable;$('#backup-group').disabled=value||!records.length;$('#confirm-import').disabled=value||!staged||!staged.additions.length&&!staged.conflicts.length;$('#cancel-import').disabled=value;$('#erase-group').disabled=value;$('#save-name').disabled=value;}
 function refreshList(){
   const visible=records.filter(r=>healthFilters[filter](r.data)&&(!unit||r.data.unit===unit)&&fold([r.data.name,r.data.surname,r.data.name+' '+r.data.surname,r.data.surname+' '+r.data.name,r.data.fiscalCode,r.data.memberCode,r.data.unit].join(' ')).includes(fold(query).trim())).sort((a,b)=>(a.data.surname+' '+a.data.name).localeCompare(b.data.surname+' '+b.data.name,'it'));
   for(const [key,test] of Object.entries(healthFilters))$('#count-'+key).textContent=records.filter(r=>test(r.data)).length;
@@ -55,7 +57,7 @@ function renderDetail(){
   $('#back-list').onclick=()=>{$('#camp-workspace').classList.remove('show-detail');document.querySelector(`.scout-row[data-id="${selected}"]`)?.focus();};
   $('#download-compact').onclick=()=>exportPdf('compact',record);
   $('#download-original').onclick=()=>exportPdf('original',record);
-  $('#download-package').onclick=()=>download(record.archive,filename(d)+'-scheda.zip','application/zip');
+  $('#download-package').onclick=()=>task(async()=>download(record.archive||await createArchive(record.data),filename(d)+'-scheda.zip','application/zip'));
   $('#remove-scout').onclick=async()=>{
     if(busy||!confirm(`Rimuovere la scheda di ${fullName(d)} da questo dispositivo? Per recuperarla servirà il suo ZIP o un backup del gruppo.`))return;
     await task(async()=>{await removeScout(record.id);await reload();notice('Scheda rimossa dal dispositivo.');});
@@ -63,7 +65,7 @@ function renderDetail(){
   $('#show-declaration').onclick=async()=>{try{const content=await(await fetch('/src/content.json')).json();$('#declaration-text').textContent=content.declaration+'\n\n(*) Il punto 4 riguarda solo i minorenni.';$('#declaration-text').hidden=false;$('#show-declaration').hidden=true;}catch{notice('Testo non disponibile: completa la preparazione offline.',true);}};
 }
 function selectScout(id){selected=id;refreshList();renderDetail();$('#camp-workspace').classList.add('show-detail');$('#scout-detail h2')?.focus();if(matchMedia('(max-width:760px)').matches)$('#scout-detail').scrollIntoView({block:'start',behavior:'smooth'});}
-async function reload(){const state=await loadState();records=state.records;campName=state.campName;render();}
+async function reload(){const state=await loadState();records=state.records;campName=state.campName;mode=state.mode;document.body.dataset.mode=mode;$('#camp-mode').textContent=mode==='use'?'Modalità uso':mode==='preparation'?'Modalità preparazione':'Da preparare';$('#preparation-panel').hidden=mode==='use';preparation?.restore(state.preparationId);render();}
 async function task(work){if(busy)return;setBusy(true);try{await work();}catch(error){notice(error.name==='QuotaExceededError'?'Memoria del dispositivo insufficiente: nessuna modifica applicata. Esporta un backup e libera spazio.':error.message||'Operazione non riuscita.',true);}finally{setBusy(false);}}
 async function exportPdf(type,record){await task(async()=>{notice('Preparazione PDF sul dispositivo…');const bytes=await(type==='compact'?compactPdf(record.data):originalPdf(record.data));download(bytes,filename(record.data)+(type==='compact'?'-compatta.pdf':'-originale.pdf'),'application/pdf');notice('PDF pronto.');});}
 
@@ -92,7 +94,7 @@ $('#confirm-import').onclick=()=>task(async()=>{
   if(!changes.length){staged=null;$('#import-dialog').close();notice('Nessuna modifica: le schede attuali sono state conservate.');return;}
   if(new Set([...records.map(r=>r.id),...changes.map(c=>c.record.id)]).size>MAX_PACKAGES)throw Error(`Massimo ${MAX_PACKAGES} scout nell’archivio del campo.`);
   const next=new Map(records.map(r=>[r.id,r]));changes.forEach(c=>next.set(c.record.id,c.record));
-  if([...next.values()].reduce((sum,r)=>sum+r.archive.byteLength,0)>75*1024*1024)throw Error('L’archivio del campo supera 75 MB. Riduci i pacchetti prima di riprovare.');
+  if([...next.values()].reduce((sum,r)=>sum+(r.archive?.byteLength||JSON.stringify(r.data).length*3),0)>75*1024*1024)throw Error('L’archivio del campo supera 75 MB. Riduci i pacchetti prima di riprovare.');
   await saveScouts(changes,importedName);staged=null;$('#import-dialog').close();await reload();notice(`${changes.length} ${changes.length===1?'scheda salvata':'schede salvate'} sul dispositivo. Puoi chiudere e riaprire l’app.`);await updateStorage(true);
 });
 $('#backup-group').onclick=()=>task(async()=>{notice('Preparazione del backup del gruppo…');download(await groupBackup(records,campName),'scout-backup-gruppo.zip','application/zip');notice(`Backup pronto: ${records.length} schede. Importalo nell’app per ripristinare il gruppo anche offline.`);});
@@ -121,8 +123,8 @@ async function offlineSetup(){
   if(!('serviceWorker'in navigator)||!window.isSecureContext){$('#offline-status').textContent='Offline non disponibile';notice('Per preparare l’app offline aprila via HTTPS in un browser compatibile, oppure usa localhost per l’anteprima.',true);return;}
   navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing){location.reload();return;}checkOffline();});
   try{
-    const registration=await navigator.serviceWorker.register('/campo/sw.js',{scope:'/campo/',updateViaCache:'none'});
-    const offerUpdate=()=>{$('#update-app').hidden=!(registration.waiting&&registration.active);};offerUpdate();navigator.serviceWorker.addEventListener('controllerchange',offerUpdate);registration.addEventListener('updatefound',()=>registration.installing?.addEventListener('statechange',offerUpdate));
+    const registration=await navigator.serviceWorker.getRegistration('/campo/')||await navigator.serviceWorker.register('/campo/sw.js',{scope:'/campo/',updateViaCache:'none'});
+    const offerUpdate=()=>{$('#update-app').hidden=!(mode==='preparation'&&registration.waiting&&registration.active);};offerUpdate();navigator.serviceWorker.addEventListener('controllerchange',offerUpdate);registration.addEventListener('updatefound',()=>registration.installing?.addEventListener('statechange',offerUpdate));
     $('#update-app').onclick=()=>{if(!busy&&registration.waiting){refreshing=true;registration.waiting.postMessage({type:'ACTIVATE_UPDATE'});}};
     await navigator.serviceWorker.ready;
     if(!navigator.serviceWorker.controller)await new Promise(resolve=>{const done=()=>{clearTimeout(timer);navigator.serviceWorker.removeEventListener('controllerchange',done);resolve();};const timer=setTimeout(done,5000);navigator.serviceWorker.addEventListener('controllerchange',done);});
@@ -137,4 +139,12 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue='';}});
 setBusy(false);
 try{await reload();storageAvailable=true;setBusy(false);await updateStorage();}catch(error){notice('Impossibile aprire la memoria del dispositivo: '+error.message,true);$('#storage-status').textContent='Memoria non disponibile: le schede non possono essere salvate.';setBusy(false);}
+preparation=setupPreparation({
+  available:()=>!busy&&storageAvailable,
+  begin:async()=>{if(busy)throw Error('Attendi il completamento dell’operazione in corso.');const id=await beginPreparation();const registration=await navigator.serviceWorker.getRegistration('/campo/');if(navigator.onLine)registration?.update().catch(()=>{});staged=null;$('#import-dialog').close();selected=null;query='';unit='';filter='all';$('#scout-search').value='';await reload();return id;},
+  ready:async()=>{await checkOffline();if(!offlineReady)throw Error('Risorse offline incomplete. Collega il telefono a Internet e riapri l’app prima della scansione.');},
+  commit:async(incoming,name,id)=>{await completePreparation(incoming,name,id);await reload();notice(`${incoming.length} schede salvate. Modalità uso: prova a riaprire l’app in modalità aereo.`);await updateStorage(true);},
+  onError:error=>notice(error.message,true)
+});
+await reload().catch(e=>notice(e.message,true));
 offlineSetup();

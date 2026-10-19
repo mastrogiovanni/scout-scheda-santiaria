@@ -3,12 +3,17 @@ import { compactPdf } from './pdf.js';
 export async function createArchive(data) {
   const clean=cleanData(data);
   if(Object.keys(validate(clean)).length)throw Error('Completa i campi richiesti prima di scaricare.');
-  const content=await (await fetch('/src/content.json')).json();
-  const payload={format:'scout-sanitaria',version:1,template:TEMPLATE,templateSha256:content.sourceSha256,exportedAt:new Date().toISOString(),data:clean};
+  const payload=await createPayload(clean);
   const zip=new window.JSZip();
   zip.file('scheda.json',JSON.stringify(payload,null,2));
   zip.file('scheda-compatta.pdf',await compactPdf(clean));
   return zip.generateAsync({type:'uint8array',compression:'DEFLATE',compressionOptions:{level:6}});
+}
+export async function createPayload(data){
+  const clean=cleanData(data);
+  if(Object.keys(validate(clean)).length)throw Error('Completa i campi richiesti.');
+  const content=await(await fetch('/src/content.json')).json();
+  return {format:'scout-sanitaria',version:1,template:TEMPLATE,templateSha256:content.sourceSha256,exportedAt:new Date().toISOString(),data:clean};
 }
 export async function readArchive(file) {
   if(file.size>12*1024*1024)throw Error('ZIP troppo grande: massimo 12 MB.');
@@ -19,6 +24,10 @@ export async function readArchive(file) {
   if(!json)throw Error('Nello ZIP manca scheda.json. Usa uno ZIP esportato da questa applicazione.');
   if(json._data?.uncompressedSize>256*1024)throw Error('Il JSON supera il limite di 256 KB.');
   let payload;try{payload=JSON.parse(await json.async('string'));}catch{throw Error('Il JSON della scheda non è valido.');}
+  return validatePayload(payload);
+}
+export async function validatePayload(payload){
+  if(new TextEncoder().encode(JSON.stringify(payload)).length>256*1024)throw Error('Il JSON supera il limite di 256 KB.');
   const content=await(await fetch('/src/content.json')).json();
   if(payload?.format!=='scout-sanitaria'||payload.version!==1||payload.template!==TEMPLATE||payload.templateSha256!==content.sourceSha256)throw Error('Versione o modello dello ZIP non compatibile con questa scheda.');
   const data=payload.data;

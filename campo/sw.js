@@ -1,9 +1,9 @@
-const VERSION='scout-campo-shell-v5';
+const VERSION='scout-campo-shell-v6';
 const ASSETS=[
-  '/campo/','/campo/index.html','/campo/style.css','/campo/app.js','/campo/store.js','/campo/packages.js','/campo/manifest.webmanifest',
+  '/campo/','/campo/index.html','/campo/style.css','/campo/app.js','/campo/store.js','/campo/packages.js','/campo/preparation.js','/campo/manifest.webmanifest',
   '/public/brand/fse-emblem.png','/campo/icons/icon-192.png','/campo/icons/icon-512.png','/campo/icons/maskable-512.png',
-  '/src/style.css','/src/schema.js','/src/pdf.js','/src/archive.js','/src/content.json',
-  '/public/vendor/pdf-lib.min.js','/public/vendor/jszip.min.js','/public/vendor/fontkit.umd.min.js',
+  '/src/style.css','/src/schema.js','/src/pdf.js','/src/archive.js','/src/content.json','/src/qr.js','/src/qrvideo.js','/src/crypto.js',
+  '/public/vendor/jsQR.js','/public/vendor/pdf-lib.min.js','/public/vendor/jszip.min.js','/public/vendor/fontkit.umd.min.js',
   '/public/vendor/NotoSans-Regular.ttf','/public/vendor/NotoSans-Bold.ttf','/public/modello-originale.pdf'
 ];
 self.addEventListener('install',event=>event.waitUntil((async()=>{

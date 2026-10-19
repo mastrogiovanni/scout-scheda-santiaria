@@ -17,6 +17,18 @@ async function collect(path){
 await collect(resolve(root,'index.html'));
 for(const folder of ['campo','capi','src','public'])await collect(resolve(root,folder));
 for(const name of ['_headers','_redirects','404.html'])files.push({path:name,bytes:await readFile(resolve(root,'deploy',name))});
+// Only explicitly public configuration may enter the static build.
+const config=files.find(f=>f.path==='src/supabase-config.js');
+const publicUrl=process.env.PUBLIC_SUPABASE_URL;
+const publicKey=process.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+if(publicUrl||publicKey){
+  if(!publicUrl||!publicKey||!/^https:\/\/[\w-]+\.supabase\.co$/.test(publicUrl))throw Error('Configura entrambe le variabili PUBLIC_SUPABASE_* con un URL Supabase valido.');
+  let validKey=publicKey.startsWith('sb_publishable_');
+  if(!validKey){try{validKey=JSON.parse(Buffer.from(publicKey.split('.')[1],'base64url').toString()).role==='anon';}catch{}}
+  if(!validKey)throw Error('Usa esclusivamente una chiave pubblicabile/anon. Una chiave segreta non può entrare nel frontend.');
+  config.bytes=Buffer.from(`export const SUPABASE_URL=${JSON.stringify(publicUrl)};\nexport const SUPABASE_PUBLISHABLE_KEY=${JSON.stringify(publicKey)};\n`);
+  const headers=files.find(f=>f.path==='_headers');headers.bytes=Buffer.from(headers.bytes.toString().replace('https://wbzwxutrholchzodzwuy.supabase.co',publicUrl));
+}
 const known=new Set(files.map(f=>'/'+f.path));
 known.add('/');known.add('/campo/');
 const worker=files.find(f=>f.path==='campo/sw.js');
