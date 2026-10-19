@@ -22,7 +22,7 @@ async function fonts(pdf, data) {
   const [,regular,bold]=await loadAssets();pdf.registerFontkit(window.fontkit);
   const normal=await pdf.embedFont(regular,{subset:true}), strong=await pdf.embedFont(bold,{subset:true});
   const supported=new Set(normal.getCharacterSet());
-  for(const [key,value] of Object.entries(data)) if(typeof value==='string') {
+  for(const record of Array.isArray(data)?data:[data])for(const [key,value] of Object.entries(record)) if(typeof value==='string') {
     const missing=[...new Set([...normalize(value)].filter(c=>c!=='\n'&&!supported.has(c.codePointAt(0))))];
     if(missing.length) throw Error(`Il campo “${fieldMap[key]?.label || key}” contiene caratteri non supportati dal font PDF: ${missing.join(' ')}. Usa una traslitterazione.`);
   }
@@ -54,48 +54,43 @@ export function dataBlocks(d) {
   ]]);
   return rows.map(([title,values])=>[title,values.filter(([,v])=>v!==undefined&&v!=='')]);
 }
-function layout(pdf,font,heading,title,subtitle) {
-  let page,y;const margin=34,width=527.56,bottom=38;
-  function newPage(){page=pdf.addPage([595.56,842.04]);y=806;page.drawText(title,{x:margin,y,size:13,font:heading,color:ink()});y-=17;for(const line of lines(subtitle,font,8,width)){page.drawText(line,{x:margin,y,size:8,font,color:ink()});y-=11;}y-=7;}
+function layout(pdf,font,heading,title,subtitle,{dense=false}={}) {
+  let page,y;const margin=dense?28:34,width=595.56-2*margin,bottom=dense?32:38,startPage=pdf.getPageCount();
+  function newPage(){page=pdf.addPage([595.56,842.04]);y=806;for(const line of lines(title,heading,13,width)){page.drawText(line,{x:margin,y,size:13,font:heading,color:ink()});y-=17;}for(const line of lines(subtitle,font,8,width)){page.drawText(line,{x:margin,y,size:8,font,color:ink()});y-=11;}y-=7;}
   newPage();
   const ensure=h=>{if(y-h<bottom)newPage();};
-  function text(value,{bold=false,size=9,space=4}={}) {
-    const face=bold?heading:font;const wrapped=lines(value,face,size,width);const lineHeight=size*1.3;
+  function text(value,{bold=false,size=dense?8.5:9,space=dense?2:4}={}) {
+    const face=bold?heading:font;const wrapped=lines(value,face,size,width);const lineHeight=size*(dense?1.22:1.3);
     for(const line of wrapped){ensure(lineHeight);page.drawText(line,{x:margin,y:y-size,size,font:face,color:ink()});y-=lineHeight;}y-=space;
   }
   function section(label){ensure(36);y-=3;page.drawRectangle({x:margin,y:y-16,width,height:16,color:window.PDFLib.rgb(.92,.95,.93)});page.drawText(label,{x:margin+6,y:y-11.5,size:9,font:heading,color:ink()});y-=21;}
-  function row(label,value){text(label+': '+normalize(value),{size:9,space:1});}
-  function signatures(d){ensure(72);text(`${d.place}, ${dateIT(d.date)}`,{space:14});const labels=d.signerRole==='parents'?['Firma del padre','Firma della madre']:d.signerRole==='self'?['Firma dell’interessato']:d.signerRole==='exclusive'?['Firma del genitore affidatario esclusivo']:['Firma di chi esercita la responsabilità / tutela'];const w=(width-20*(labels.length-1))/labels.length;for(let i=0;i<labels.length;i++){const x=margin+i*(w+20);page.drawLine({start:{x,y:y-16},end:{x:x+w,y:y-16},thickness:.5,color:ink()});page.drawText(labels[i],{x,y:y-29,size:8,font,color:ink()});}y-=42;}
-  function finish(){pdf.getPages().forEach((p,i)=>{const value=`${i+1} / ${pdf.getPageCount()}  ·  ${fullNameForFooter || ''}`;let size=7;while(font.widthOfTextAtSize(value,size)>width)size-=.25;p.drawText(value,{x:margin,y:20,size,font,color:ink()});});}
+  function row(label,value){text(label+': '+normalize(value),{size:dense?8.5:9,space:1});}
+  function finish(){const pages=pdf.getPages().slice(startPage);pages.forEach((p,i)=>{const value=`${i+1} / ${pages.length}  ·  ${fullNameForFooter || ''}`;let size=7;while(font.widthOfTextAtSize(value,size)>width)size-=.25;p.drawText(value,{x:margin,y:20,size,font,color:ink()});});}
   let fullNameForFooter='';
-  return {text,section,row,signatures,finish,setName:n=>fullNameForFooter=n};
+  return {text,section,row,finish,setName:n=>fullNameForFooter=n};
 }
 export async function compactPdf(d) {
-  const {PDFDocument}=window.PDFLib;const pdf=await PDFDocument.create();const {normal,strong}=await fonts(pdf,d);const [, , ,content]=await loadAssets();
-  pdf.setTitle('Scheda sanitaria compatta - '+fullName(d));pdf.setSubject('Anno scout 2026-2027 · Roma 21');
-  const out=layout(pdf,normal,strong,'SCHEDA SANITARIA · ROMA 21','Anno scout 2026-2027 · Copia per le attività · Da firmare');out.setName(fullName(d));
+  return compactGroupPdf([d]);
+}
+export async function compactGroupPdf(records,{groupName='',scoutYear=''}={}) {
+  if(!records.length)throw Error('Seleziona almeno una scheda.');
+  const {PDFDocument}=window.PDFLib,pdf=await PDFDocument.create(),{normal,strong}=await fonts(pdf,[...records,{Gruppo:groupName,Anno:scoutYear}]);
+  pdf.setTitle(records.length===1?'Scheda sanitaria ridotta - '+fullName(records[0]):'Schede sanitarie ridotte - '+(groupName||'Campo'));
+  pdf.setSubject([groupName,scoutYear,'Roma 21'].filter(Boolean).join(' · '));
+  for(const d of records)renderCompact(pdf,normal,strong,d,{groupName,scoutYear});
+  return pdf.save();
+}
+function renderCompact(pdf,normal,strong,d,{groupName,scoutYear}) {
+  const subtitle=[groupName,scoutYear,'Dati per il campo'].filter(Boolean).join(' · ');
+  const out=layout(pdf,normal,strong,'SCHEDA SANITARIA · '+fullName(d),subtitle,{dense:true});out.setName(fullName(d));
   for(const [title,rows] of dataBlocks(d)){
-    out.section(title);
+    out.section(title==='Richiesta somministrazione farmaci al Capo Unità'?'Somministrazione farmaci':title);
     if(title==='Dati personali') {
       const groups=[['Nome e cognome','Persona'],['Nascita'],['Residenza'],['Telefono','Email'],['Codice fiscale','Codice socio'],['Gruppo / Unità']];
-      for(const labels of groups)out.text(rows.filter(([label])=>labels.includes(label)).map(([label,value])=>label+': '+value).join(' · '),{size:9,space:1});
-    }else for(const [label,value] of rows)out.row(label,value);
+      for(const labels of groups)out.text(rows.filter(([label])=>labels.includes(label)).map(([label,value])=>label+': '+value).join(' · '),{space:1});
+    }else for(const [label,value] of rows)if(!['Firmatari','Allegato da consegnare'].includes(label))out.row(label,value);
   }
-  out.section('Dichiarazioni');
-  if(d.subjectType==='minor') out.text('Il/la minore non presenta sintomi o segni riferibili a malattie trasmissibili in atto; non convive e non ha avuto contatti con persone affette da malattie trasmissibili in fase di contagiosità, tali da precludere l’ammissione dello/a stesso/a in comunità.');
-  let declaration=content.declaration;
-  if(d.subjectType!=='minor') declaration=declaration.replace(/4\.\(\*\)[\s\S]*?(?=5\. Le)/,'');
-  out.text(declaration.replace(/\s*\n\s*/g,' '),{size:8.3,space:5});
-  if(d.administration==='yes') {
-    out.section('Autorizzazione alla somministrazione');
-    out.text(`I richiedenti constatano l’assoluta necessità di somministrazione di farmaci a ${fullName(d)}, frequentante l’Unità ${d.unit} del Gruppo scout ROMA 21, nel periodo indicato, come da prescrizione medica allegata.`);
-    out.text(d.administrationMode==='leaders'?'Chiedono di individuare, tra i capi componenti la pattuglia di unità, gli incaricati ad effettuare la prestazione, di cui autorizzano formalmente fin d’ora l’intervento, esonerandoli da ogni responsabilità, consapevoli che la somministrazione del farmaco non rientra tra le funzioni previste.':d.administrationMode==='supervision'?'Chiedono che il minore si auto-somministri la terapia farmacologica con A. la vigilanza dei capi dell’unità (sorveglianza generica sull’avvenuta auto somministrazione).':'Chiedono che il minore si auto-somministri la terapia farmacologica con B. l’affiancamento dei capi dell’unità (controllo delle modalità di auto somministrazione).');
-    out.text('La richiesta/autorizzazione va consegnata al Capo Unità e ha validità specificata dalla durata della terapia. I farmaci prescritti per i minorenni vanno consegnati in confezione integra e lasciati in custodia al Capo Unità per la durata della terapia.');
-  }
-  out.section('Consenso al trattamento dei dati personali');
-  out.text(`${d.subjectType==='adult'?fullName(d):d.declarant}, ${d.subjectType==='adult'?'interessato':d.subjectType==='minor'?'esercente la responsabilità genitoriale su '+fullName(d):'esercente la tutela / curatela / amministrazione di sostegno su '+fullName(d)}, ${d.consent==='yes'?'PRESTA IL CONSENSO':'NON PRESTA IL CONSENSO'} al trattamento di categorie particolari di dati personali inerenti ${d.subjectType==='adult'?'il proprio stato di salute':'lo stato di salute della persona indicata'} per le finalità indicate nell’informativa del modello originale, ovvero per consentire all’Interessato la partecipazione agli eventi organizzati dall’Associazione quali campi, uscite, raduni.`);
-  if(d.currentPresent==='yes')out.text('In caso di malattie croniche allegare copia del tesserino di esenzione della compartecipazione alla spesa sanitaria. Per le terapie già instaurate consegnare ai Capi Unità i farmaci necessari in un contenitore idoneo con la relativa posologia; compilare, se necessaria, la richiesta di somministrazione.');
-  out.signatures(d);out.finish();return pdf.save();
+  out.finish();
 }
 export async function originalPdf(d) {
   const {PDFDocument,rgb}=window.PDFLib;const [template,,,content]=await loadAssets();

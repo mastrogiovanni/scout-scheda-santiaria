@@ -43,7 +43,8 @@ Prima di ritirare un’installazione precedente, gestire la conservazione e la c
 6. Aprire il gruppo per scaricare tutte le buste cifrate (pagine da 20 elementi), oppure esportarle in un JSON cifrato. Il database conserva ciascuna scheda come documento JSON `envelope` associato al gruppo; non viene caricato il PDF o lo ZIP in Storage.
 7. Scegliere **Scansiona QR privato** e mostrare il foglio alla camera del computer. Il lettore funziona anche nei browser privi di BarcodeDetector. Una chiave di un altro capo viene rifiutata. La chiave importata non è esportabile e viene rilasciata dopo la decifratura. I risultati rimangono soltanto in memoria della pagina. **Dimentica schede decifrate**, cambio gruppo e logout li eliminano.
 8. Se una consegna è danneggiata o non compatibile, viene segnalata separatamente: le schede valide restano utilizzabili. In presenza di più consegne della stessa persona, scegliere esplicitamente una sola versione confrontando i dati. La preparazione rifiuta duplicati dello stesso codice fiscale.
-9. Scegliere **Mostra QRVideo**. Aprire `/campo/` sul telefono, avviare la preparazione e inquadrare lo schermo. Avviare la ripetizione; velocità regolabile da 1 a 5 QR/s, pausa e navigazione manuale fra frammenti.
+9. Dopo lo sblocco, selezionare gli scout e scegliere **Scarica PDF ridotto del campo**: viene generato localmente un PDF unico, con una nuova pagina per ogni scheda, senza dichiarazioni, consenso o firme. I testi lunghi proseguono su altre pagine senza tagli. La selezione rifiuta duplicati dello stesso codice fiscale. Il pulsante scompare quando si dimenticano le schede o si cambia gruppo.
+10. Scegliere **Mostra QRVideo**. Aprire `/campo/` sul telefono, avviare la preparazione e inquadrare lo schermo. Avviare la ripetizione; velocità regolabile da 1 a 5 QR/s, pausa e navigazione manuale fra frammenti.
 
 Limiti: 100 gruppi per capo, 400 consegne per gruppo, 256 KB di JSON per scheda. Non vengono acquisiti documenti firmati, prescrizioni o allegati medici. Una nuova consegna corregge la precedente senza sovrascriverla; il capo sceglie quale versione portare al campo.
 
@@ -53,7 +54,7 @@ Il genitore apre il link, controlla gruppo, anno e capo destinatario, compila o 
 
 Nel riepilogo sceglie esplicitamente l’invio e preme **Invia scheda cifrata**. Il browser valida i dati e cifra soltanto il JSON con una nuova chiave effimera e nuovi salt/IV. Il backend riceve una busta JSON opaca, associata al gruppo, senza nomi, codici fiscali o informazioni sanitarie in colonne separate. L’identificativo di consegna e il ciphertext vengono riutilizzati se un errore di rete richiede un nuovo tentativo: la RPC restituisce la stessa ricevuta e non crea duplicati. Attendere la ricevuta prima di considerare completata la consegna.
 
-Restano disponibili ZIP locale, condivisione di file dal dispositivo e PDF originale. Questi file esportati contengono dati sanitari in chiaro; non vengono caricati durante la consegna cifrata. Le risposte del modulo rimangono in memoria fino alla chiusura/ricaricamento. Non viene salvata una bozza automatica.
+Restano disponibili ZIP locale con il solo JSON dei dati, condivisione di file dal dispositivo e PDF originale. La compilazione non esporta più copie ridotte, nemmeno nello ZIP. Questi file esportati contengono dati sanitari in chiaro; non vengono caricati durante la consegna cifrata. Le risposte del modulo rimangono in memoria fino alla chiusura/ricaricamento. Non viene salvata una bozza automatica.
 
 ### Cifratura
 
@@ -98,9 +99,9 @@ QRVideo trasferisce **schede decifrate**: la verifica SHA-256 rileva errori e fr
 
 ## PDF e ZIP
 
-Il compatto A4 è dinamico: riporta informazioni utili, dichiarazioni applicabili, consenso e firme, senza pagine informative o sezioni vuote. L’originale conserva le 11 pagine del modello FSE Roma 21 e compila gli spazi esistenti. Testi eccedenti vengono riportati in allegato con richiami; le firme restano vuote. Font Noto Sans incorporati, caratteri non supportati segnalati.
+Il ridotto A4 contiene soltanto dati personali, sanitari, farmaci e recapiti, senza dichiarazioni, consenso, firme o pagine informative. Il PDF cumulativo nell’Area Capi è disponibile soltanto dopo la decifratura e usa gruppo e anno correnti; ogni scout inizia su una nuova pagina, anche quando la scheda precedente occupa più pagine. L’originale conserva le 11 pagine del modello FSE Roma 21 e compila gli spazi esistenti. Testi eccedenti vengono riportati in allegato con richiami; le firme restano vuote. Font Noto Sans incorporati, caratteri non supportati segnalati.
 
-Lo ZIP individuale contiene `scheda.json` (`format: "scout-sanitaria"`, versione 1, modello, SHA-256 del modello, data di esportazione, `data`) e `scheda-compatta.pdf`. Il JSON è l’unica fonte per l’importazione; campi sconosciuti, tipi, risposte, modello e dimensioni vengono verificati prima di sostituire lo stato. Limiti: 12 MB compressi, 10 voci, 16 MB per voce e 256 KB per il JSON. Il backup del gruppo contiene `campo.json` e i pacchetti in `pacchetti/`.
+Lo ZIP della compilazione contiene solo `scheda.json`; rimane importabile anche dai vecchi pacchetti con PDF. Lo ZIP individuale esportato dall’archivio del campo contiene `scheda.json` (`format: "scout-sanitaria"`, versione 1, modello, SHA-256 del modello, data di esportazione, `data`) e `scheda-compatta.pdf`. Il JSON è l’unica fonte per l’importazione; campi sconosciuti, tipi, risposte, modello e dimensioni vengono verificati prima di sostituire lo stato. Limiti: 12 MB compressi, 10 voci, 16 MB per voce e 256 KB per il JSON. Il backup del gruppo contiene `campo.json` e i pacchetti in `pacchetti/`.
 
 La condivisione usa il menu nativo solo se il browser supporta realmente lo ZIP; su Android/Chromium viene proposto il download con istruzioni per allegare il documento da File/Download o WhatsApp. L’app non invia messaggi alle famiglie.
 

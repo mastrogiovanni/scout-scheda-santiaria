@@ -30,9 +30,9 @@ try{
     const {createArchive}=await import('/src/archive.js');const bytes=await createArchive(data);let text='';for(let i=0;i<bytes.length;i+=8192)text+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(text);
   },basic);
   const input=output+'/input.zip';await writeFile(input,Buffer.from(zip,'base64'));
-  // Make preparation outlast transient user activation, as PDF generation may on phones.
-  await page.reload();await page.getByRole('heading',{name:'Prima di iniziare'}).waitFor();let delayed=false;
-  await page.route('**/public/modello-originale.pdf',async route=>{if(!delayed){delayed=true;await new Promise(resolve=>setTimeout(resolve,6000));}await route.continue();});
+  // Make data ZIP preparation outlast transient user activation. No reduced PDF is generated.
+  await page.reload();await page.getByRole('heading',{name:'Prima di iniziare'}).waitFor();let contentLoads=0;
+  await page.route('**/src/content.json',async route=>{if(++contentLoads===2)await new Promise(resolve=>setTimeout(resolve,6000));await route.continue();});
   await page.locator('#import-file').setInputFiles(input);
   await page.locator('#export-zip').waitFor();assert.equal(await page.locator('#export-zip').isDisabled(),true);
   await page.locator('#export-zip:not([disabled])').waitFor({timeout:20000});
@@ -45,7 +45,7 @@ try{
   const shared=await page.evaluate(async()=>{
     const zip=await JSZip.loadAsync(await window.sharedFile.arrayBuffer());return {call:window.shareCalls.at(-1),names:Object.keys(zip.files),data:JSON.parse(await zip.file('scheda.json').async('string')).data};
   });
-  assert.equal(shared.call.active,true);assert.deepEqual(shared.call.keys,['files']);assert.equal(shared.call.name,'giulia-rossi-scheda.zip');assert.equal(shared.call.type,'application/zip');assert.equal(shared.data.name,'Giulia');assert.deepEqual(shared.names,['scheda.json','scheda-compatta.pdf']);
+  assert.equal(shared.call.active,true);assert.deepEqual(shared.call.keys,['files']);assert.equal(shared.call.name,'giulia-rossi-scheda.zip');assert.equal(shared.call.type,'application/zip');assert.equal(shared.data.name,'Giulia');assert.deepEqual(shared.names,['scheda.json']);
   // Canceling leaves the ZIP ready and does not download or regenerate it.
   await page.evaluate(()=>window.shareMode='AbortError');await page.locator('#export-zip').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.startsWith('Condivisione annullata'));
   assert.equal(downloads,0);assert.equal(await page.locator('#export-zip').isEnabled(),true);
@@ -98,5 +98,5 @@ try{
     }
     await android.close();
   }
-  assert.deepEqual(errors,[]);console.log('PASS: ZIP sharing activation, JSON/PDF, cancellation, readable error, explicit download, edits, mobile layout and Android Chromium ZIP rejection fallback. Native share targets are mocked: no file is actually sent.');
+  assert.deepEqual(errors,[]);console.log('PASS: ZIP sharing activation, data-only JSON, cancellation, readable error, explicit download, edits, mobile layout and Android Chromium ZIP rejection fallback. Native share targets are mocked: no file is actually sent.');
 }finally{await browser.close();}

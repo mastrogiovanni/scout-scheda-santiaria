@@ -32,6 +32,7 @@ try {
   }
   await page.getByRole('heading',{name:'La tua scheda è pronta'}).waitFor();
   await page.locator('#export-zip:not([disabled])').waitFor();
+  assert.equal(await page.locator('#section-content').getByRole('button',{name:/compatt|ridott/i}).count(),0);
   assert.equal(await page.locator('#export-zip').isEnabled(),true,'Export disabled: '+await page.locator('#section-content').innerText());
   const download=page.waitForEvent('download');await page.locator('#export-zip').click();await (await download.catch(async e=>{console.error(await page.locator('#notice').innerText());console.error(errors);throw e;})).saveAs('tmp/pdfs/basic.zip');
   const original=page.waitForEvent('download');await page.locator('#export-original').click();await(await original).saveAs('tmp/pdfs/basic-original.pdf');
@@ -45,12 +46,16 @@ try {
     const bytesToString=bytes=>{let result='';for(let i=0;i<bytes.length;i+=8192)result+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(result);};
     const result={};
     async function save(name,d){const errors=schema.validate(d);if(Object.keys(errors).length)throw Error(name+JSON.stringify(errors));const compact=await pdf.compactPdf(schema.cleanData(d)),original=await pdf.originalPdf(schema.cleanData(d));result[name]={compact:bytesToString(compact),original:bytesToString(original),pages:[(await PDFLib.PDFDocument.load(compact)).getPageCount(),(await PDFLib.PDFDocument.load(original)).getPageCount()]};}
-    await save('complete',complete);
+    await save('basic',basic);await save('complete',complete);
     const adult={...basic,subjectType:'adult',signerRole:'self',birthDate:'2000-05-14',fiscalCode:'RSSGLI00E54H501Z',consent:'no',tetanusStatus:'unknown',boosterStatus:'none'};await save('adult',adult);
     const guardian={...complete,subjectType:'protected',signerRole:'guardian',guardianName:'Ada',guardianSurname:'Neri',guardianAddress:'Via Tutela 2',guardianPhone:'3337777777',declarant:'Ada Neri',requestRole:'guardians',requester1:'Ada Neri',requester2:'',administrationMode:'assistance'};await save('guardian',guardian);
     const long={...complete,administrationMode:'leaders',landlines:'06001\n06002\n06003\n06004',mobiles:'33301\n33302\n33303\n33304'};
     for(const [id] of schema.optionalHealth)long[id+'Details']=('Informazione completa da preservare, con dettagli e accenti: è già così. '.repeat(80)+'FINE-'+id).slice(0,5900);
     await save('long',long);
+    const group=await pdf.compactGroupPdf([basic,long,{...basic,name:'Luisa',surname:'Verdi',fiscalCode:'VRDLSA13E54H501Z'}],{groupName:'Guide',scoutYear:'2027-2028'});
+    result.group=bytesToString(group);
+    const parentZip=await JSZip.loadAsync(await archive.createArchive(basic,{includeCompact:false}));
+    if(JSON.stringify(Object.keys(parentZip.files))!==JSON.stringify(['scheda.json']))throw Error('Parent ZIP contains a reduced PDF');
     // Import must use JSON rather than a PDF contained in the archive.
     const zipBytes=await archive.createArchive(basic);const zip=await JSZip.loadAsync(zipBytes);zip.file('scheda-compatta.pdf','PDF intenzionalmente non valido');
     const roundtrip=await archive.readArchive(new File([await zip.generateAsync({type:'uint8array'})],'roundtrip.zip'));
@@ -67,6 +72,7 @@ try {
     result.json=roundtrip;return result;
   },{basic,complete});
   for(const [key,value]of Object.entries(results))if(value?.compact){await writeFile('tmp/pdfs/'+key+'-compact.pdf',Buffer.from(value.compact,'base64'));await writeFile('tmp/pdfs/'+key+'-original.pdf',Buffer.from(value.original,'base64'));console.log(key+' pages (compact/original): '+value.pages.join('/'));}
+  await writeFile('tmp/pdfs/group-reduced.pdf',Buffer.from(results.group,'base64'));
   await writeFile('tmp/pdfs/roundtrip.json',JSON.stringify(results.json,null,2));
   assert.deepEqual(errors,[],'Browser errors');assert.deepEqual(external,[],'External network request');assert.equal(results.failures.length,6);
   console.log('PASS: UI compilation, mobile, ZIP import/export, JSON roundtrip, all optional sections, adult/refusal, guardianship, long text, malformed archives, no external requests.');

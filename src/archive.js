@@ -1,12 +1,12 @@
 import { TEMPLATE, allFields, cleanData, validate, fullName } from './schema.js';
 import { compactPdf } from './pdf.js';
-export async function createArchive(data) {
+export async function createArchive(data,{includeCompact=true}={}) {
   const clean=cleanData(data);
   if(Object.keys(validate(clean)).length)throw Error('Completa i campi richiesti prima di scaricare.');
   const payload=await createPayload(clean);
   const zip=new window.JSZip();
   zip.file('scheda.json',JSON.stringify(payload,null,2));
-  zip.file('scheda-compatta.pdf',await compactPdf(clean));
+  if(includeCompact)zip.file('scheda-compatta.pdf',await compactPdf(clean));
   return zip.generateAsync({type:'uint8array',compression:'DEFLATE',compressionOptions:{level:6}});
 }
 export async function createPayload(data){
