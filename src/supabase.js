@@ -18,3 +18,23 @@ export async function signup(email,password){const result=await request('/auth/v
 export async function logout(){try{if(session)await request('/auth/v1/logout',{}, {authenticated:true});}finally{remember(null);}}
 export async function currentUser(){if(!session)return null;return request('/auth/v1/user',null,{authenticated:true,method:'GET'});}
 export const rpc=(name,body={},authenticated=false)=>request('/rest/v1/rpc/scout_secure_'+name,body,{authenticated});
+
+export async function requestPasswordReset(email){
+  await request('/auth/v1/recover?redirect_to='+encodeURIComponent(location.origin+'/capi/'),{email});
+}
+export async function acceptRecoveryLink(params){
+  const access=params.get('access_token'),refresh=params.get('refresh_token');
+  if(params.get('type')!=='recovery'||!access||!refresh||access.length>16000||refresh.length>2000)throw Error('Link di recupero incompleto. Richiedi una nuova email.');
+  const previous=session;
+  session={access_token:access,refresh_token:refresh};
+  try{
+    const user=await request('/auth/v1/user',null,{authenticated:true,method:'GET',retry:false});
+    if(!user?.id||!user.email)throw Error('Account non valido.');
+    remember({...session,user});return user;
+  }catch{session=previous;throw Error('Link di recupero scaduto o non valido. Richiedi una nuova email.');}
+}
+export async function updatePassword(password){
+  if(typeof password!=='string'||password.length<12)throw Error('Scegli una password di almeno 12 caratteri.');
+  const user=await request('/auth/v1/user',{password},{authenticated:true,method:'PUT'});
+  remember({...session,user});return user;
+}

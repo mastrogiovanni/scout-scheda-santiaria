@@ -23,6 +23,8 @@ Node.js 18+ per sviluppo/build; Node.js 22 su Netlify. Librerie, font, lettore e
 
 Auth identifica il capo; le RPC e RLS autorizzano l’accesso soltanto ai suoi gruppi e alle sue consegne. I genitori non creano account: possono leggere il destinatario e inviare una consegna soltanto conoscendo il link del gruppo. I ruoli anonimi non leggono tabelle o schede; le scritture avvengono attraverso RPC con privilegi espliciti. La chiave pubblica del capo non è modificabile dopo il censimento.
 
+Se l’indirizzo è già registrato e confermato, una nuova richiesta di registrazione può restituire una risposta generica senza inviare un’altra email. Usare **Accedi**. Il comando **Password dimenticata o primo accesso con password?** invia un link di recupero su richiesta esplicita, utile anche per gli account che prima usavano un link email. Il link apre il modulo per impostare una password, dopo la verifica della sessione con Supabase; i token vengono rimossi dall’URL e la password non viene salvata dal frontend.
+
 La sessione Auth (token di accesso e rinnovo, senza chiave crittografica privata) è conservata in sessionStorage per la scheda del browser. Logout la elimina; l’account permette di gestire i gruppi ma non sostituisce il QR privato.
 
 ### Passaggio dalla raccolta precedente
@@ -115,6 +117,7 @@ npm run test:share
 npm run test:secure
 npm run test:qrvideo
 npm run test:database
+npm run test:auth
 ```
 
 Le suite browser accettano `TEST_BASE_URL` per provare una build o un dominio diverso. `test:secure` usa solo Node/Web Crypto. `test:database` richiede `initdb`, `pg_ctl` e `psql` nel PATH: crea e arresta un PostgreSQL temporaneo con socket locale, simula soltanto le funzioni minime di Supabase Auth e verifica la migrazione, RLS fra capi, privilegi anonimi, invarianti e idempotenza. Non si collega a Supabase reale.
