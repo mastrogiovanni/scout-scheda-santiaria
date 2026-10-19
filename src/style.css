@@ -161,6 +161,7 @@ dl>div{grid-template-columns:1fr;gap:1px}
 .delivery-card{padding:14px;border:1px solid #c6d2e0;border-left:3px solid var(--navy);background:var(--blue-wash);border-radius:8px;margin-bottom:16px;font-size:var(--text-body);line-height:1.8}
 .delivery-card h3{font:26px Georgia,serif;margin:10px 0}
 .delivery-card .button{margin-top:14px;white-space:normal}
+.delivery-actions{display:flex;flex-wrap:wrap;gap:12px}
 .delivery-card .check-row{background:white}
 .receipt-code{overflow-wrap:anywhere}
 #delivery-banner[hidden]{display:none}

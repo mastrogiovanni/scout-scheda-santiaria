@@ -2,7 +2,7 @@ import { sections, allFields, active, validate, cleanData, fullName } from './sc
 import { dataBlocks, originalPdf } from './pdf.js';
 import { createArchive, readArchive, download, filename } from './archive.js';
 import { canShareFile, shareFile, fileShareRestriction } from './share.js';
-import {initDelivery,deliveryHtml,mountDelivery} from './collection.js';
+import {initDelivery,deliveryHtml,mountDelivery,resetDelivery} from './collection.js';
 const LAST=sections.length-1;
 let data={}, current=0, errors={}, busy=false, dirty=false;
 let preparedZip=null, preparingZip=null, zipError='', shareError='';
@@ -46,7 +46,7 @@ function notify(message,error=false){$('#notice').textContent=message;$('#notice
 $('#health-form').addEventListener('input',e=>{
   const f=allFields.find(f=>f.id===e.target.name);if(!f)return;
   data[f.id]=f.type==='checkbox'?e.target.checked:e.target.value;
-  invalidateZip();
+  invalidateZip();resetDelivery();
   dirty=true;delete errors[f.id];
   if(f.type==='select'){render();document.getElementById(f.id)?.focus();}
   else {e.target.removeAttribute('aria-invalid');document.getElementById(f.id+'-error').textContent='';}
@@ -54,7 +54,14 @@ $('#health-form').addEventListener('input',e=>{
 $('#health-form').addEventListener('submit',e=>e.preventDefault());
 $('#next').onclick=()=>{if(busy)return;errors=validate(data,current);if(Object.keys(errors).length){render();document.getElementById(Object.keys(errors)[0])?.focus();notify('Completa le voci evidenziate per continuare.',true);return;}notify('');go(Math.min(LAST,current+1));};
 $('#previous').onclick=()=>go(Math.max(0,current-1));
-$('#reset').onclick=()=>{if(busy)return;if(Object.keys(data).length&&!confirm('Svuotare tutti i dati inseriti? Assicurati di aver scaricato o condiviso lo ZIP se vuoi conservarli.'))return;data={};errors={};dirty=false;invalidateZip();notify('Scheda svuotata.');go(0);};
+$('#reset').onclick=()=>{if(busy)return;if(Object.keys(data).length&&!confirm('Svuotare tutti i dati inseriti? Assicurati di aver scaricato o condiviso lo ZIP se vuoi conservarli.'))return;startSheet(false);};
+function startSheet(keepAnswers){
+  if(busy)return;
+  resetDelivery();invalidateZip();errors={};
+  if(!keepAnswers){data={};dirty=false;}
+  notify(keepAnswers?'Modifica i dati e invia una nuova versione. La consegna precedente resta salvata.':'Scheda svuotata. Puoi compilare una nuova scheda.');
+  go(keepAnswers?1:0);
+}
 function invalidateZip(){preparedZip=null;preparingZip=null;zipError='';shareError='';}
 function currentZip(){const key=JSON.stringify(cleanData(data));return preparedZip?.key===key?preparedZip.file:null;}
 function updateZipControls(){
@@ -113,10 +120,10 @@ async function exportOriginal(){
 $('#import-trigger').onclick=()=>{if(!busy)$('#import-file').click();};
 $('#import-file').onchange=async e=>{
   const file=e.target.files[0];if(!file||busy)return;busy=true;document.body.classList.add('busy');
-  try{const imported=await readArchive(file);if(Object.keys(data).length&&!confirm('Sostituire i dati attuali con quelli contenuti nello ZIP?'))return;data=imported;errors={};dirty=false;invalidateZip();current=LAST;render(true);notify('Scheda importata. Puoi condividere il pacchetto, scaricare l’originale o modificare qualsiasi sezione.');}
+  try{const imported=await readArchive(file);if(Object.keys(data).length&&!confirm('Sostituire i dati attuali con quelli contenuti nello ZIP?'))return;data=imported;errors={};dirty=false;invalidateZip();resetDelivery();current=LAST;render(true);notify('Scheda importata. Puoi condividere il pacchetto, scaricare l’originale o modificare qualsiasi sezione.');}
   catch(err){notify('Importazione non riuscita: '+err.message,true);}
   finally{e.target.value='';busy=false;document.body.classList.remove('busy');updateZipControls();}
 };
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 render();
-initDelivery({getFile:currentZip,onSent:file=>{if(currentZip()===file)dirty=false;},notify,setBusy:value=>{busy=value;document.body.classList.toggle('busy',value);updateZipControls();}});
+initDelivery({getFile:currentZip,onSent:file=>{if(currentZip()===file)dirty=false;},onNewSheet:()=>startSheet(false),onCorrection:()=>startSheet(true),notify,setBusy:value=>{busy=value;document.body.classList.toggle('busy',value);updateZipControls();}});

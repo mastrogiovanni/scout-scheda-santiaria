@@ -8,6 +8,7 @@ const folder=await mkdtemp(join(tmpdir(),'scout-pg-')),db=join(folder,'data');
 function run(binary,args){const result=spawnSync(binary,args,{encoding:'utf8'});if(result.status!==0)throw Error(binary+' failed:\n'+result.stderr+'\n'+result.stdout);return result.stdout;}
 const identity=await generateIdentity(),b=await generateIdentity(),uid='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222',token='a'.repeat(64),groupId='33333333-3333-4333-8333-333333333333';
 const envelope=await seal({only:'synthetic test data'},{groupId,keyId:identity.keyId,publicKey:identity.publicKey});
+const secondEnvelope=await seal({only:'synthetic test data'},{groupId,keyId:identity.keyId,publicKey:identity.publicKey});
 const lit=value=>"'"+JSON.stringify(value).replace(/'/g,"''")+"'::jsonb";
 const migration=await readFile(new URL('../supabase/migrations/202610190001_zero_trust.sql',import.meta.url),'utf8');
 const sql=`
@@ -40,6 +41,10 @@ select public.test_assert((select count(*) from public.scout_secure_sheets)=0,'R
 select public.test_assert(public.scout_secure_sheets('${groupId}')='[]'::jsonb,'Sheets RPC isolation');
 select set_config('request.jwt.claim.sub','${uid}',false);
 select public.test_assert(jsonb_array_length(public.scout_secure_sheets('${groupId}'))=1,'Idempotent submission');
+select public.scout_secure_submit('${token}',${lit(secondEnvelope)});
+select public.scout_secure_submit('${token}',${lit(secondEnvelope)});
+select public.test_assert(jsonb_array_length(public.scout_secure_sheets('${groupId}'))=2,'Same group link accepts a new submission and its retry');
+select public.test_assert((select envelope from public.scout_secure_sheets where id='${envelope.submissionId}')=${lit(envelope)},'Original submission preserved');
 select public.scout_secure_update_group('${groupId}',true);
 set role anon;select set_config('request.jwt.claim.sub','',false);
 do $$begin perform public.scout_secure_submit('${token}',${lit({...envelope,submissionId:crypto.randomUUID()})});raise exception 'Closed group accepted a new sheet';exception when raise_exception then if sqlerrm='Closed group accepted a new sheet' then raise;end if;end$$;
@@ -48,11 +53,11 @@ select public.scout_secure_update_group('${groupId}',false,'${'b'.repeat(64)}');
 set role anon;select set_config('request.jwt.claim.sub','',false);
 do $$begin perform public.scout_secure_group_info('${token}');raise exception 'Old link accepted';exception when raise_exception then if sqlerrm='Old link accepted' then raise;end if;end$$;
 reset role;
-select public.test_assert((select count(*) from public.scout_secure_sheets)=1,'Count');
+select public.test_assert((select count(*) from public.scout_secure_sheets)=2,'Count');
 with ids as(select gen_random_uuid() id from generate_series(1,25)) insert into public.scout_secure_sheets(id,group_id,envelope) select id,'${groupId}',jsonb_set(${lit(envelope)},'{submissionId}',to_jsonb(id)) from ids;
 set role authenticated;select set_config('request.jwt.claim.sub','${uid}',false);
 select public.test_assert(jsonb_array_length(public.scout_secure_sheets('${groupId}',0))=20,'First page');
-select public.test_assert(jsonb_array_length(public.scout_secure_sheets('${groupId}',20))=6,'Second page');
+select public.test_assert(jsonb_array_length(public.scout_secure_sheets('${groupId}',20))=7,'Second page');
 reset role;
 select public.test_assert(not has_function_privilege('anon','public.scout_secure_register(text,jsonb,text)','execute'),'Anon cannot register');
 select public.test_assert(not has_table_privilege('authenticated','public.scout_secure_leaders','update'),'Cannot replace public key');

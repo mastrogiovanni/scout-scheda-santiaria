@@ -17,10 +17,20 @@ export async function initDelivery(config){
   mountDelivery();
 }
 export function deliveryHtml(){return token?'<section class="delivery-card" id="delivery-card" aria-label="Consegna cifrata al gruppo"></section>':'';}
+export function resetDelivery(){
+  if(sending)return;
+  pending=null;delivered=null;
+  document.getElementById('delivery-card')?.replaceChildren();
+}
 export function mountDelivery(){
   const card=document.getElementById('delivery-card');if(!card)return;
   if(!info){card.innerHTML=`<h3>Consegna al gruppo</h3><p>${esc(problem||'Controllo del link…')}</p><p>Puoi comunque scaricare lo ZIP.</p>`;return;}
-  if(delivered){card.innerHTML=`<span class="file-tag">CONSEGNA CIFRATA CONFERMATA</span><h3>Scheda ricevuta</h3><p>${esc(info.name)} · ${esc(info.year)} · ${esc(localDate(delivered.receivedAt))}</p><p class="receipt-code">Ricevuta: <strong>${esc(delivered.receipt)}</strong></p><p>Per una correzione, ricarica il link e compila una nuova consegna. Il capo sceglierà la versione da portare al campo.</p>`;return;}
+  if(delivered){
+    card.innerHTML=`<span class="file-tag">CONSEGNA CIFRATA CONFERMATA</span><h3>Scheda ricevuta</h3><p>${esc(info.name)} · ${esc(info.year)} · ${esc(localDate(delivered.receivedAt))}</p><p class="receipt-code">Ricevuta: <strong>${esc(delivered.receipt)}</strong></p><p>Puoi compilare un’altra scheda per lo stesso gruppo oppure correggere questa. Ogni nuovo invio avrà una ricevuta distinta; le consegne precedenti rimarranno disponibili al capo.</p><div class="delivery-actions"><button class="button primary" type="button" id="new-sheet">Compila un’altra scheda</button><button class="button secondary" type="button" id="correct-sheet">Correggi questa scheda</button></div>`;
+    card.querySelector('#new-sheet').onclick=()=>options.onNewSheet?.();
+    card.querySelector('#correct-sheet').onclick=()=>options.onCorrection?.();
+    return;
+  }
   if(info.closed){card.innerHTML='<h3>Consegne chiuse</h3><p>Contatta il capo per riaprire il gruppo.</p>';return;}
   if(!card.querySelector('#submit-package'))card.innerHTML=`<span class="file-tag">JSON CIFRATO · ${esc(info.year)}</span><h3>Invia a ${esc(info.name)}</h3><p>Solo il capo ${esc(info.leader)} potrà decifrare la scheda con il suo QR privato. Il backend riceve esclusivamente il JSON cifrato.</p><label class="check-row"><input id="delivery-consent" type="checkbox"><span>Voglio inviare questa scheda sanitaria al gruppo indicato.</span></label><button class="button primary" type="button" id="submit-package" disabled>Invia scheda cifrata ↑</button><p id="delivery-status" role="status" aria-live="polite"></p>`;
   const button=card.querySelector('#submit-package'),choice=card.querySelector('#delivery-consent');button.disabled=sending||!choice.checked||!options.getFile?.();choice.disabled=sending;button.textContent=sending?'Cifratura e invio…':'Invia scheda cifrata ↑';choice.onchange=mountDelivery;button.onclick=send;

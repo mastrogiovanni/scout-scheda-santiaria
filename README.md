@@ -54,6 +54,8 @@ Il genitore apre il link, controlla gruppo, anno e capo destinatario, compila o 
 
 Nel riepilogo sceglie esplicitamente l’invio e preme **Invia scheda cifrata**. Il browser valida i dati e cifra soltanto il JSON con una nuova chiave effimera e nuovi salt/IV. Il backend riceve una busta JSON opaca, associata al gruppo, senza nomi, codici fiscali o informazioni sanitarie in colonne separate. L’identificativo di consegna e il ciphertext vengono riutilizzati se un errore di rete richiede un nuovo tentativo: la RPC restituisce la stessa ricevuta e non crea duplicati. Attendere la ricevuta prima di considerare completata la consegna.
 
+Lo stesso link può essere usato più volte. Dopo la ricevuta, **Compila un’altra scheda** svuota il modulo mantenendo il gruppo, per esempio per un altro figlio. **Correggi questa scheda** conserva le risposte per inviare una nuova versione. Anche modificare, importare o svuotare il modulo riattiva la consegna: ogni nuova compilazione richiede nuovamente la scelta esplicita d’invio e riceve un nuovo UUID, senza sostituire le consegne precedenti. Il capo sceglie quale versione portare al campo. Il link rimane in memoria durante queste operazioni e non occorre ricaricare la pagina.
+
 Restano disponibili ZIP locale con il solo JSON dei dati, condivisione di file dal dispositivo e PDF originale. La compilazione non esporta più copie ridotte, nemmeno nello ZIP. Questi file esportati contengono dati sanitari in chiaro; non vengono caricati durante la consegna cifrata. Le risposte del modulo rimangono in memoria fino alla chiusura/ricaricamento. Non viene salvata una bozza automatica.
 
 ### Cifratura
@@ -119,6 +121,7 @@ npm run test:secure
 npm run test:qrvideo
 npm run test:database
 npm run test:auth
+npm run test:delivery
 ```
 
 Le suite browser accettano `TEST_BASE_URL` per provare una build o un dominio diverso. `test:secure` usa solo Node/Web Crypto. `test:database` richiede `initdb`, `pg_ctl` e `psql` nel PATH: crea e arresta un PostgreSQL temporaneo con socket locale, simula soltanto le funzioni minime di Supabase Auth e verifica la migrazione, RLS fra capi, privilegi anonimi, invarianti e idempotenza. Non si collega a Supabase reale.
