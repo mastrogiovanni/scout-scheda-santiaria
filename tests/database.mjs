@@ -11,12 +11,15 @@ const envelope=await seal({only:'synthetic test data'},{groupId,keyId:identity.k
 const secondEnvelope=await seal({only:'synthetic test data'},{groupId,keyId:identity.keyId,publicKey:identity.publicKey});
 const lit=value=>"'"+JSON.stringify(value).replace(/'/g,"''")+"'::jsonb";
 const migration=await readFile(new URL('../supabase/migrations/202610190001_zero_trust.sql',import.meta.url),'utf8');
+const deletionMigration=await readFile(new URL('../supabase/migrations/202610190002_delete_sheet.sql',import.meta.url),'utf8');
 const sql=`
 create role anon;create role authenticated;
 create schema auth;create table auth.users(id uuid primary key);
 create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
 grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;
 ${migration}
+${deletionMigration}
+${deletionMigration}
 create function public.test_assert(ok boolean,msg text) returns void language plpgsql as $$begin if ok is distinct from true then raise exception '%',msg;end if;end$$;
 insert into auth.users values('${uid}'),('${other}');
 set role authenticated;select set_config('request.jwt.claim.sub','${uid}',false);
@@ -62,6 +65,25 @@ reset role;
 select public.test_assert(not has_function_privilege('anon','public.scout_secure_register(text,jsonb,text)','execute'),'Anon cannot register');
 select public.test_assert(not has_table_privilege('authenticated','public.scout_secure_leaders','update'),'Cannot replace public key');
 select public.test_assert(not has_table_privilege('anon','public.scout_secure_sheets','select'),'Anonymous table privileges');
+select public.test_assert(not has_table_privilege('authenticated','public.scout_secure_sheets','delete'),'No direct table deletion');
+select public.test_assert(not has_function_privilege('anon','public.scout_secure_delete_sheet(uuid,uuid)','execute'),'Anonymous cannot delete');
+set role anon;
+do $$begin perform public.scout_secure_delete_sheet('${groupId}','${envelope.submissionId}');raise exception 'Anonymous deletion passed';exception when insufficient_privilege then null;end$$;
+set role authenticated;select set_config('request.jwt.claim.sub','${other}',false);
+do $$begin perform public.scout_secure_delete_sheet('${groupId}','${envelope.submissionId}');raise exception 'Cross-owner deletion passed';exception when raise_exception then if sqlerrm='Cross-owner deletion passed' then raise;end if;end$$;
+select public.scout_secure_create_group('Guide','2026-2027','${'c'.repeat(64)}');
+-- A caller cannot pass their own group to delete a sheet belonging to another group.
+select public.scout_secure_delete_sheet((select id from public.scout_secure_groups where owner_id='${other}' limit 1),'${envelope.submissionId}');
+reset role;
+select public.test_assert(exists(select 1 from public.scout_secure_sheets where id='${envelope.submissionId}'),'Other group sheet unchanged');
+set role authenticated;select set_config('request.jwt.claim.sub','',false);
+do $$begin perform public.scout_secure_delete_sheet('${groupId}','${envelope.submissionId}');raise exception 'Missing identity deletion passed';exception when raise_exception then if sqlerrm='Missing identity deletion passed' then raise;end if;end$$;
+select set_config('request.jwt.claim.sub','${uid}',false);
+select public.scout_secure_update_group('${groupId}',true);
+select public.scout_secure_delete_sheet('${groupId}','${envelope.submissionId}');
+select public.scout_secure_delete_sheet('${groupId}','${envelope.submissionId}');
+select public.test_assert(not exists(select 1 from public.scout_secure_sheets where id='${envelope.submissionId}'),'Owner deletion works for closed groups and retry');
+select public.test_assert(exists(select 1 from public.scout_secure_sheets where id='${secondEnvelope.submissionId}'),'Other version preserved');
 `;
 let started=false;
 try{run('initdb',['-D',db,'-A','trust','--no-locale','-E','UTF8']);run('pg_ctl',['-D',db,'-l',join(folder,'postgres.log'),'-o',`-h '' -k ${folder} -p 55437`,'-w','start']);started=true;await writeFile(join(folder,'test.sql'),sql);run('psql',['-h',folder,'-p','55437','-d','postgres','-v','ON_ERROR_STOP=1','-f',join(folder,'test.sql')]);console.log('Migrazione PostgreSQL, RLS tra due capi, privilegi anon, JSON cifrato e idempotenza verificati.');}
