@@ -1,6 +1,6 @@
 import {rpc} from './supabase.js';
 import {fingerprint,seal} from './crypto.js';
-import {readArchive,createPayload} from './archive.js';
+import {createPayload} from './archive.js';
 export const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const localDate=value=>new Intl.DateTimeFormat('it-IT',{dateStyle:'short',timeStyle:'short',timeZone:'Europe/Rome'}).format(new Date(value));
 const esc=escapeHtml,params=new URLSearchParams(location.hash.slice(1));
@@ -24,7 +24,7 @@ export function resetDelivery(){
 }
 export function mountDelivery(){
   const card=document.getElementById('delivery-card');if(!card)return;
-  if(!info){card.innerHTML=`<h3>Consegna al gruppo</h3><p>${esc(problem||'Controllo del link…')}</p><p>Puoi comunque scaricare lo ZIP.</p>`;return;}
+  if(!info){card.innerHTML=`<h3>Consegna al gruppo</h3><p>${esc(problem||'Controllo del link…')}</p><p>Puoi comunque scaricare il PDF originale.</p>`;return;}
   if(delivered){
     card.innerHTML=`<span class="file-tag">CONSEGNA CIFRATA CONFERMATA</span><h3>Scheda ricevuta</h3><p>${esc(info.name)} · ${esc(info.year)} · ${esc(localDate(delivered.receivedAt))}</p><p class="receipt-code">Ricevuta: <strong>${esc(delivered.receipt)}</strong></p><p>Puoi compilare un’altra scheda per lo stesso gruppo oppure correggere questa. Ogni nuovo invio avrà una ricevuta distinta; le consegne precedenti rimarranno disponibili al capo.</p><div class="delivery-actions"><button class="button primary" type="button" id="new-sheet">Compila un’altra scheda</button><button class="button secondary" type="button" id="correct-sheet">Correggi questa scheda</button></div>`;
     card.querySelector('#new-sheet').onclick=()=>options.onNewSheet?.();
@@ -33,15 +33,16 @@ export function mountDelivery(){
   }
   if(info.closed){card.innerHTML='<h3>Consegne chiuse</h3><p>Contatta il capo per riaprire il gruppo.</p>';return;}
   if(!card.querySelector('#submit-package'))card.innerHTML=`<span class="file-tag">JSON CIFRATO · ${esc(info.year)}</span><h3>Invia a ${esc(info.name)}</h3><p>Solo il capo ${esc(info.leader)} potrà decifrare la scheda con il suo QR privato. Il backend riceve esclusivamente il JSON cifrato.</p><label class="check-row"><input id="delivery-consent" type="checkbox"><span>Voglio inviare questa scheda sanitaria al gruppo indicato.</span></label><button class="button primary" type="button" id="submit-package" disabled>Invia scheda cifrata ↑</button><p id="delivery-status" role="status" aria-live="polite"></p>`;
-  const button=card.querySelector('#submit-package'),choice=card.querySelector('#delivery-consent');button.disabled=sending||!choice.checked||!options.getFile?.();choice.disabled=sending;button.textContent=sending?'Cifratura e invio…':'Invia scheda cifrata ↑';choice.onchange=mountDelivery;button.onclick=send;
+  const button=card.querySelector('#submit-package'),choice=card.querySelector('#delivery-consent');button.disabled=sending||!choice.checked||!options.getData?.();choice.disabled=sending;button.textContent=sending?'Cifratura e invio…':'Invia scheda cifrata ↑';choice.onchange=mountDelivery;button.onclick=send;
 }
 async function send(){
-  const file=options.getFile?.();if(sending||!file||!document.getElementById('delivery-consent')?.checked)return;
+  const data=options.getData?.();if(sending||!data||!document.getElementById('delivery-consent')?.checked)return;
+  const key=JSON.stringify(data);
   sending=true;options.setBusy?.(true);mountDelivery();const status=document.getElementById('delivery-status');
   try{status.textContent='Cifratura locale della scheda…';
     // Reuse the same ciphertext/UUID on retry after an ambiguous network failure.
-    if(pending?.file!==file)pending={file,envelope:await seal(await createPayload(await readArchive(file)),info)};
-    status.textContent='Invio del solo JSON cifrato…';delivered=await rpc('submit',{p_token:token,p_envelope:pending.envelope});pending=null;options.onSent?.(file);options.notify?.('Scheda cifrata ricevuta. Conserva la ricevuta.');
+    if(pending?.key!==key)pending={key,envelope:await seal(await createPayload(data),info)};
+    status.textContent='Invio del solo JSON cifrato…';delivered=await rpc('submit',{p_token:token,p_envelope:pending.envelope});pending=null;options.onSent?.(data);options.notify?.('Scheda cifrata ricevuta. Conserva la ricevuta.');
   }catch(error){status.textContent=error.message;options.notify?.(error.message,true);}
   finally{sending=false;options.setBusy?.(false);mountDelivery();}
 }

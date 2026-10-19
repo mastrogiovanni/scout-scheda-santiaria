@@ -36,7 +36,7 @@ export const sections = [
     f('noContagion','Confermo che il minore non presenta sintomi o segni di malattie trasmissibili in atto, né convive o ha avuto contatti con persone in fase di contagiosità tali da precludere l’ammissione in comunità.','checkbox',{required:true,when:d=>d.subjectType==='minor'}),
     f('declarationAccepted','Confermo le dichiarazioni sopra riportate, inclusa l’esattezza e completezza dei dati e l’impegno a comunicare per iscritto e con firma ogni variazione.','checkbox',{required:true}),
     f('consent','Consenso al trattamento dei dati sanitari per le finalità del modello','select',{required:true,options:[['','Esprimi una scelta'],['yes','Presto il consenso'],['no','Non presto il consenso']]}),f('place','Luogo di compilazione','text',{required:true,max:120}),f('date','Data di compilazione','date',{required:true})]},
-  {title:'La tua scheda è pronta',short:'Scarica',caption:'Controlla i dati e prepara le copie per le attività e per la sede.',fields:[]}
+  {title:'La tua scheda è pronta',short:'Riepilogo',caption:'Controlla i dati, invia la scheda al gruppo o scarica l’originale.',fields:[]}
 ];
 export const allFields = sections.flatMap(s=>s.fields);
 export const fieldMap = Object.fromEntries(allFields.map(f=>[f.id,f]));

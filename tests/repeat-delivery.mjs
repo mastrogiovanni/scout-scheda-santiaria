@@ -31,12 +31,16 @@ try{
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'/#'+new URLSearchParams({gruppo:token,chiave:identity.keyId}));
   await page.locator('#delivery-banner').getByText('Capo destinatario:',{exact:false}).waitFor();assert(!page.url().includes('#'));
-  const fixtureZip=async data=>Buffer.from(await page.evaluate(async data=>Array.from(await(await import('/src/archive.js')).createArchive(data,{includeCompact:false})),data));
+  await page.evaluate(()=>{window.testZipGenerations=0;const generate=JSZip.prototype.generateAsync;JSZip.prototype.generateAsync=function(...args){window.testZipGenerations++;return generate.apply(this,args);};});
+  let fixtureZips=0;
+  const fixtureZip=async data=>{fixtureZips++;return Buffer.from(await page.evaluate(async data=>Array.from(await(await import('/src/archive.js')).createArchive(data,{includeCompact:false})),data));};
   const upload=async(data,name='scheda.zip')=>page.locator('#import-file').setInputFiles({name,mimeType:'application/zip',buffer:await fixtureZip(data)});
-  const ready=async()=>{await page.locator('#export-zip:not([disabled])').waitFor();await page.locator('#submit-package').waitFor();assert.equal(await page.locator('#delivery-consent').isChecked(),false);assert(await page.locator('#submit-package').isDisabled());};
+  const ready=async()=>{await page.locator('#submit-package').waitFor();await page.waitForFunction(()=>!document.body.classList.contains('busy'));assert.equal(await page.locator('#export-zip, #download-zip, #retry-zip, #zip-status').count(),0);assert.equal(await page.getByText('ZIP · COPIA DEI DATI',{exact:true}).count(),0);assert.equal(await page.locator('#delivery-consent').isChecked(),false);assert(await page.locator('#submit-package').isDisabled());};
   const submit=async()=>{await page.locator('#delivery-consent').check();await page.locator('#submit-package').click();await page.getByRole('heading',{name:'Scheda ricevuta',exact:true}).waitFor();return page.locator('.receipt-code strong').innerText();};
 
   await upload(complete);await ready();assert.equal(submissions.length,0);
+  await page.locator('.download-grid').scrollIntoViewIfNeeded();await page.screenshot({path:'tmp/delivery/compilazione-senza-zip-desktop.png'});
+  await page.setViewportSize({width:390,height:844});await page.locator('.download-grid').scrollIntoViewIfNeeded();await page.screenshot({path:'tmp/delivery/compilazione-senza-zip-mobile.png'});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.setViewportSize({width:1280,height:1000});
   await page.locator('#delivery-consent').check();await page.locator('#submit-package').click();await page.getByText('Risposta interrotta. Riprova lo stesso invio.',{exact:true}).last().waitFor();
   assert.equal(stored.size,1);assert.equal(await page.locator('#new-sheet').count(),0);
   await page.locator('#submit-package').click();await page.getByRole('heading',{name:'Scheda ricevuta',exact:true}).waitFor();
@@ -60,6 +64,7 @@ try{
   // Starting another child clears every answer while retaining the group's in-memory link.
   await page.locator('#new-sheet').click();await page.getByRole('heading',{name:'Prima di iniziare',exact:true}).waitFor();assert.equal(await page.locator('#readInfo').isChecked(),false);
   await page.locator('[data-step="1"]').click();assert.equal(await page.locator('#name').inputValue(),'');assert.equal(await page.locator('#fiscalCode').inputValue(),'');await page.locator('[data-step="0"]').click();
+  await page.locator('[data-step="7"]').click();await ready();await page.locator('#delivery-consent').check();assert(await page.locator('#submit-package').isDisabled());assert(await page.locator('#export-original').isDisabled());await page.locator('[data-step="0"]').click();
   const other={...basic,name:'Luisa',surname:'Verdi',fiscalCode:'VRDLSA13E54H501Z'};
   for(let step=0;step<7;step++){
     const fields=await page.locator('#section-content input, #section-content textarea, #section-content select').evaluateAll(els=>els.map(e=>({id:e.id,type:e.type})));
@@ -74,6 +79,7 @@ try{
   page.once('dialog',d=>d.accept());await upload(complete,'correzione.zip');await ready();const fifth=await submit();assert.equal(stored.size,5);assert.notEqual(fifth,first);
   page.once('dialog',d=>d.accept());await page.locator('#reset').click();await page.getByRole('heading',{name:'Prima di iniziare',exact:true}).waitFor();await upload(basic);await ready();
   assert.equal(submissions.length,6,'No automatic submissions on edit, reset, import or starting a new sheet');
+  assert.equal(await page.evaluate(()=>window.testZipGenerations),fixtureZips,'Only the test fixture helper may generate ZIPs; form/review/delivery must not');
   assert(!JSON.stringify(submissions).includes('Giulia'));assert(!JSON.stringify(submissions).includes('allergiesDetails'));assert.deepEqual(errors,[]);
   await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   console.log('PASS: same link, intentional repeat with distinct receipt, unchanged prior deliveries, correction, new child with empty form, replacement import/reset, explicit consent each time, encrypted payloads and idempotent network retry. Auth/RPC mocked; no real records sent.');

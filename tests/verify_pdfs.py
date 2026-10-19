@@ -10,7 +10,7 @@ source = PdfReader(root / 'public/modello-originale.pdf')
 normalize = lambda value: re.sub(r'\s+', '', value)
 
 with ZipFile(output / 'basic.zip') as archive:
-    assert archive.namelist() == ['scheda.json'], 'Parent export must contain data only'
+    assert archive.namelist() == ['scheda.json'], 'Legacy import fixture must contain data only'
 
 for name in ['basic', 'complete', 'adult', 'guardian', 'long']:
     original = PdfReader(output / f'{name}-original.pdf')

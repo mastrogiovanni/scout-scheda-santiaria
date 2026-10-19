@@ -56,7 +56,7 @@ Nel riepilogo sceglie esplicitamente l’invio e preme **Invia scheda cifrata**.
 
 Lo stesso link può essere usato più volte. Dopo la ricevuta, **Compila un’altra scheda** svuota il modulo mantenendo il gruppo, per esempio per un altro figlio. **Correggi questa scheda** conserva le risposte per inviare una nuova versione. Anche modificare, importare o svuotare il modulo riattiva la consegna: ogni nuova compilazione richiede nuovamente la scelta esplicita d’invio e riceve un nuovo UUID, senza sostituire le consegne precedenti. Il capo sceglie quale versione portare al campo. Il link rimane in memoria durante queste operazioni e non occorre ricaricare la pagina.
 
-Restano disponibili ZIP locale con il solo JSON dei dati, condivisione di file dal dispositivo e PDF originale. La compilazione non esporta più copie ridotte, nemmeno nello ZIP. Questi file esportati contengono dati sanitari in chiaro; non vengono caricati durante la consegna cifrata. Le risposte del modulo rimangono in memoria fino alla chiusura/ricaricamento. Non viene salvata una bozza automatica.
+La compilazione offre il PDF originale e l’invio cifrato al gruppo direttamente dai dati validati del modulo. Non genera ZIP, nemmeno per preparare la consegna, e non offre comandi per scaricarli o condividerli. È ancora possibile importare uno ZIP precedente. Il PDF contiene dati sanitari in chiaro e non viene caricato durante la consegna cifrata. Le risposte del modulo rimangono in memoria fino alla chiusura/ricaricamento. Non viene salvata una bozza automatica.
 
 ### Cifratura
 
@@ -103,9 +103,7 @@ QRVideo trasferisce **schede decifrate**: la verifica SHA-256 rileva errori e fr
 
 Il ridotto A4 contiene soltanto dati personali, sanitari, farmaci e recapiti, senza dichiarazioni, consenso, firme o pagine informative. Il PDF cumulativo nell’Area Capi è disponibile soltanto dopo la decifratura e usa gruppo e anno correnti; ogni scout inizia su una nuova pagina, anche quando la scheda precedente occupa più pagine. L’originale conserva le 11 pagine del modello FSE Roma 21 e compila gli spazi esistenti. Testi eccedenti vengono riportati in allegato con richiami; le firme restano vuote. Font Noto Sans incorporati, caratteri non supportati segnalati.
 
-Lo ZIP della compilazione contiene solo `scheda.json`; rimane importabile anche dai vecchi pacchetti con PDF. Lo ZIP individuale esportato dall’archivio del campo contiene `scheda.json` (`format: "scout-sanitaria"`, versione 1, modello, SHA-256 del modello, data di esportazione, `data`) e `scheda-compatta.pdf`. Il JSON è l’unica fonte per l’importazione; campi sconosciuti, tipi, risposte, modello e dimensioni vengono verificati prima di sostituire lo stato. Limiti: 12 MB compressi, 10 voci, 16 MB per voce e 256 KB per il JSON. Il backup del gruppo contiene `campo.json` e i pacchetti in `pacchetti/`.
-
-La condivisione usa il menu nativo solo se il browser supporta realmente lo ZIP; su Android/Chromium viene proposto il download con istruzioni per allegare il documento da File/Download o WhatsApp. L’app non invia messaggi alle famiglie.
+La compilazione importa i vecchi ZIP, ma non ne crea di nuovi. Lo ZIP individuale esportato dall’archivio del campo contiene `scheda.json` (`format: "scout-sanitaria"`, versione 1, modello, SHA-256 del modello, data di esportazione, `data`) e `scheda-compatta.pdf`. Il JSON è l’unica fonte per l’importazione; campi sconosciuti, tipi, risposte, modello e dimensioni vengono verificati prima di sostituire lo stato. Limiti: 12 MB compressi, 10 voci, 16 MB per voce e 256 KB per il JSON. Il backup del gruppo contiene `campo.json` e i pacchetti in `pacchetti/`.
 
 ## Verifiche
 
@@ -116,7 +114,6 @@ npm start
 # In un secondo terminale:
 npm test
 npm run test:campo
-npm run test:share
 npm run test:secure
 npm run test:qrvideo
 npm run test:database
