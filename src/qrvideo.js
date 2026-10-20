@@ -34,4 +34,4 @@ export class QRVideoReceiver{
     this.complete=true;return {payload:JSON.parse(decodeUtf8(raw)),progress:this.progress};
   }
 }
-export function drawProgress(canvas,progress){canvas.width=1000;canvas.height=28;const ctx=canvas.getContext('2d');ctx.fillStyle='#dbe2e8';ctx.fillRect(0,0,1000,28);if(!progress.total)return;for(const index of progress.received){ctx.fillStyle=index%2?'#267463':'#16365a';ctx.fillRect(index/progress.total*1000,0,Math.max(1,1000/progress.total-1),28);}canvas.setAttribute('aria-valuenow',String(progress.count));canvas.setAttribute('aria-valuemax',String(progress.total));}
+export function drawProgress(canvas,progress){canvas.width=1000;canvas.height=28;const ctx=canvas.getContext('2d');ctx.fillStyle='#dbe2e8';ctx.fillRect(0,0,1000,28);canvas.setAttribute('aria-valuenow',String(progress.count));canvas.setAttribute('aria-valuemax',String(progress.total));if(!progress.total)return;for(const index of progress.received){ctx.fillStyle=index%2?'#267463':'#16365a';ctx.fillRect(index/progress.total*1000,0,Math.max(1,1000/progress.total-1),28);}}

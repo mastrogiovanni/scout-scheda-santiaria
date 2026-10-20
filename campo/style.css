@@ -45,9 +45,6 @@
 .detail-heading h2:focus{outline:0}
 .detail-heading>p{font-size:var(--text-small);color:var(--muted);line-height:1.8}
 .identity-code{display:block;font-size:var(--text-caption);font-family:monospace;color:#6a766c}
-.detail-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:6px 0 12px;margin-bottom:14px}
-.detail-actions .button{font-size:var(--text-caption);padding:10px 12px}
-.detail-actions .text-button{margin-left:auto;font-size:var(--text-caption)}
 .health-card{border:1px solid #d8e3d0;border-left:3px solid #94af82;padding:10px 12px;margin-bottom:10px;background:var(--sage);border-radius:5px}
 .health-card h3{font-size:var(--text-body);margin:0 0 7px}
 .health-card p{font-size:var(--text-body);line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
@@ -69,9 +66,6 @@
 .record-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;border-top:1px solid var(--line);margin-top:23px;padding-top:13px;font-size:var(--text-caption);color:var(--muted)}
 .record-footer .text-button{font-size:var(--text-caption)}
 .back-list{display:none}
-.device-card{padding:14px;border:1px solid var(--line);border-radius:10px;margin-top:16px;display:flex;justify-content:space-between;gap:25px;align-items:center;background:var(--sage)}
-.device-card strong{font-size:var(--text-body)}
-.device-card p{font-size:var(--text-caption);line-height:1.8;color:var(--muted);margin:7px 0 0;max-width:470px}
 .device-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:flex-end}
 .device-actions .button{font-size:var(--text-caption)}
 .device-actions .text-button{font-size:var(--text-caption)}
@@ -87,12 +81,6 @@ dialog label{font-size:var(--text-body);font-weight:700}
 #camp-name{margin:10px 0}
 #save-name{font-size:var(--text-small)}
 .dialog-actions{display:flex;gap:15px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
-.conflict-row{display:flex;gap:13px;align-items:flex-start;padding:10px 12px;background:var(--warning);border:1px solid #ecdbba;border-radius:6px;margin:13px 0;line-height:1.8}
-.conflict-row input{width:19px;height:19px;accent-color:var(--green);flex-shrink:0;margin-top:2px}
-.conflict-row span{display:block;font-size:var(--text-small);font-weight:400}
-.conflict-row strong{font-weight:700;font-size:var(--text-body)}
-.import-error{padding:13px;background:var(--danger-wash);color:var(--orange);margin:10px 0;border-radius:5px;font-size:var(--text-small);overflow-wrap:anywhere}
-.import-error p{margin-bottom:0}
 .setup-instructions p{color:#56665e}
 .danger-zone{border-top:1px solid var(--line);margin-top:23px;padding-top:17px}
 .sr-only{position:absolute;clip:rect(0,0,0,0);width:1px;height:1px;overflow:hidden}
@@ -106,7 +94,6 @@ noscript{padding:30px;display:block}
 .camp-heading h1{font-size:36px}
 .camp-stats button{padding:12px;gap:10px}
 .camp-stats span{font-size:var(--text-caption)}
-.device-card{display:block}
 .device-actions{justify-content:flex-start;margin-top:16px}
 }
 
@@ -136,14 +123,11 @@ noscript{padding:30px;display:block}
 .back-list{display:block;margin:0 0 20px;padding:7px 0}
 .detail-heading h2{font-size:31px}
 .detail-heading .eyebrow{font-size:var(--text-caption);line-height:1.7}
-.detail-actions .text-button{margin-left:0}
-.detail-actions .button{flex:1}
 .health-card p{font-size:var(--text-body)}
 .contact-grid{grid-template-columns:1fr}
 .contact-tile{padding:10px 12px}
 .phone-link{font-size:var(--text-input);min-height:41px}
 .full-record dl>div{grid-template-columns:1fr}
-.device-card{padding:12px}
 .device-actions{display:grid;grid-template-columns:1fr}
 .device-actions .button{width:100%;font-size:var(--text-body)}
 .device-actions .text-button{text-align:left;font-size:var(--text-small)}
@@ -156,13 +140,6 @@ dialog h2{font-size:27px}
 .camp-main footer{margin-top:25px;padding-bottom:calc(25px + env(safe-area-inset-bottom))}
 }
 
-.conflict-card{margin:13px 0;border:1px solid #ecdbba;border-radius:6px;overflow:hidden}
-.conflict-card .conflict-row{margin:0;border:0;border-radius:0}
-.conflict-card details{padding:12px 15px;margin:0!important}
-.import-diff{max-height:280px;overflow:auto}
-.import-diff>div{padding:12px 0;border-bottom:1px solid var(--line)}
-.import-diff strong{font-size:var(--text-small)}
-.import-diff p{font-size:var(--text-small);margin:7px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
 
 .detail-jumps{display:flex;gap:7px;flex-wrap:wrap;position:sticky;top:0;background:#fff;z-index:1;padding:10px 0;margin:-12px 0 14px;border-bottom:1px solid var(--line)}
 .detail-jumps a{font-size:var(--text-caption);text-decoration:none;padding:10px;border-radius:5px;color:var(--navy);background:var(--blue-wash);min-height:44px;display:inline-flex;align-items:center}
@@ -172,13 +149,18 @@ dialog h2{font-size:27px}
 
 .camp-stats [aria-pressed=true] strong{color:#fff}
 .camp-stats button:hover{border-color:var(--navy)}
-.camp-start-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end}
-.status-tag{background:var(--sage);padding:6px 10px;border-radius:5px;font-size:14px}
 .preparation-panel{padding:20px;background:white;border:1px solid var(--line);border-radius:10px;margin-bottom:20px}
 .preparation-panel[hidden]{display:none}
 .preparation-panel h2{font:28px Georgia,serif;color:var(--navy)}
 .preparation-panel p{line-height:1.7}
 #camp-video{display:block;width:100%;max-height:44vh;background:#142637;border-radius:8px;margin:14px 0}
 #fragment-progress{display:block;width:100%;height:28px;border-radius:4px;background:#dbe2e8}
-body[data-mode=preparation] .camp-stats,body[data-mode=preparation] .camp-workspace{display:none}
-@media(max-width:760px){.camp-start-actions{justify-content:flex-start}.preparation-panel{padding:14px}.camp-start-actions .button{width:100%}}
+
+#sync-screen[hidden],#camp-use[hidden],#preparation-panel[hidden],#prepare-qrvideo[hidden]{display:none}
+#sync-screen{max-width:760px;margin:0 auto}
+.erase-check{display:flex;align-items:flex-start;gap:12px;line-height:1.7;padding:14px;border:1px solid var(--line);border-radius:6px;background:var(--warning)}
+.erase-check input{width:22px;height:22px;flex-shrink:0;margin-top:3px;accent-color:var(--navy)}
+#confirm-erase{background:#9a4234;border-color:#9a4234}
+#confirm-erase:disabled{opacity:.4;cursor:not-allowed}
+.camp-main footer .text-button{font-size:var(--text-small);text-decoration:underline}
+@media(max-width:760px){.preparation-panel{padding:14px}}
